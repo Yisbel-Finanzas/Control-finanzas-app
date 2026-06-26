@@ -7,6 +7,7 @@ import Movimientos from './pages/Movimientos'
 import Cuentas from './pages/Cuentas'
 import Deudas from './pages/Deudas'
 import Resumen from './pages/Resumen'
+import ConfigCategorias from './pages/config/Categorias'
 
 export default function App() {
   const [session, setSession] = useState(undefined)
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/cuentas" element={<Cuentas />} />
         <Route path="/deudas" element={<Deudas />} />
         <Route path="/resumen" element={<Resumen />} />
+        <Route path="/config/categorias" element={<ConfigCategorias />} />
         <Route path="*" element={<Navigate to="/movimientos" replace />} />
       </Routes>
     </Layout>
