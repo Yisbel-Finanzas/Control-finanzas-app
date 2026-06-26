@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Control de Finanzas</title>
+    <script>
+      (function() {
+        var q = window.location.search;
+        if (q && q.indexOf('?p=') === 0) {
+          var path = decodeURIComponent(q.slice(3).replace(/&h=.*/, ''));
+          var hash = q.match(/&h=(.*)/) ? '#' + decodeURIComponent(q.match(/&h=(.*)/)[1]) : '';
+          window.history.replaceState(null, null, '/Control-finanzas-app/' + path + hash);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

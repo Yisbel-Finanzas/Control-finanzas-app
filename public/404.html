@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script>
+    var l = window.location;
+    l.replace(
+      l.protocol + '//' + l.host + '/Control-finanzas-app/' +
+      '?p=' + encodeURIComponent(l.pathname.slice('/Control-finanzas-app/'.length) + l.search) +
+      (l.hash ? '&h=' + encodeURIComponent(l.hash.slice(1)) : '')
+    );
+  </script>
+</head>
+</html>
