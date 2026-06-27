@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Finanzas · Design Reference 02</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue:     #2563eb;
+      --blue-l:   #eff6ff;
+      --blue-m:   #bfdbfe;
+      --green:    #16a34a;
+      --green-l:  #f0fdf4;
+      --red:      #dc2626;
+      --red-l:    #fef2f2;
+      --amber:    #d97706;
+      --amber-l:  #fffbeb;
+      --bg:       #f1f5f9;
+      --border:   #e2e8f0;
+      --t1:       #0f172a;
+      --t2:       #475569;
+      --t3:       #64748b;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #07111f;
+      color: #fff;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 55% 35% at 75% 10%, rgba(37,99,235,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 50% at 20% 90%, rgba(22,163,74,0.04) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body > * { position: relative; z-index: 1; }
+
+    /* ── INTRO ──────────────────────────────────────── */
+    .intro { text-align: center; padding: 100px 24px 72px; }
+    .intro-eyebrow {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+      color: #60a5fa; margin-bottom: 24px;
+    }
+    .intro-eyebrow::before, .intro-eyebrow::after { content: ''; display: block; width: 28px; height: 1px; background: #1e3a5f; }
+    .intro h1 {
+      font-size: clamp(30px, 5vw, 56px); font-weight: 900; letter-spacing: -0.04em; line-height: 1.05;
+      margin-bottom: 20px;
+      background: linear-gradient(140deg, #f8fafc 30%, #64748b);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .intro p { font-size: 14px; color: #334155; max-width: 480px; margin: 0 auto 32px; line-height: 1.75; }
+    .intro-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .intro-badge { font-size: 10px; font-weight: 600; color: #334155; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 9999px; letter-spacing: 0.04em; }
+
+    /* ── SECTION ────────────────────────────────────── */
+    .section { max-width: 1180px; margin: 0 auto; padding: 80px 40px; }
+    .section + .section { border-top: 1px solid rgba(255,255,255,0.04); }
+    .section-meta { margin-bottom: 48px; }
+    .section-num { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #1e293b; margin-bottom: 10px; }
+    .section-name { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: #e2e8f0; margin-bottom: 8px; }
+    .section-desc { font-size: 13px; color: #334155; line-height: 1.7; max-width: 520px; }
+
+    /* ── PHONES ─────────────────────────────────────── */
+    .phones { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap; }
+    .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .phone-label { font-size: 10px; color: #1e3a5f; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+
+    /* ── PHONE FRAME ────────────────────────────────── */
+    .phone {
+      width: 290px;
+      background: linear-gradient(145deg, #1c2b3a 0%, #111820 60%, #0d1520 100%);
+      border-radius: 46px; padding: 8px;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.10),
+        0 0 0 2px rgba(0,0,0,0.8),
+        0 40px 80px rgba(0,0,0,0.8),
+        0 0 120px rgba(37,99,235,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+      position: relative;
+    }
+    .phone::before {
+      content: ''; position: absolute; right: -3px; top: 110px;
+      width: 3px; height: 56px;
+      background: linear-gradient(180deg, #1a2535 0%, #0f1722 100%);
+      border-radius: 0 3px 3px 0; box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
+    }
+    .phone::after {
+      content: ''; position: absolute; left: -3px; top: 90px;
+      width: 3px; height: 34px;
+      background: linear-gradient(180deg, #1a2535 0%, #0f1722 100%);
+      border-radius: 3px 0 0 3px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 46px 0 0 #1a2535, 0 46px 0 1px rgba(255,255,255,0.06), 0 80px 0 0 #1a2535, 0 80px 0 1px rgba(255,255,255,0.06);
+    }
+
+    /* ── SCREEN ─────────────────────────────────────── */
+    .phone-screen {
+      width: 100%; height: 620px; border-radius: 38px; overflow: hidden;
+      background: var(--bg); display: flex; flex-direction: column;
+      position: relative; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
+    }
+
+    /* ── DYNAMIC ISLAND ─────────────────────────────── */
+    .di { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 90px; height: 26px; background: #000; border-radius: 9999px; z-index: 15; }
+
+    /* ── STATUS BAR ─────────────────────────────────── */
+    .sb { flex-shrink: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px 0 24px; position: relative; z-index: 5; }
+    .sb-light { background: var(--blue); }
+    .sb-bg    { background: var(--bg); }
+    .sb-w     { background: #fff; }
+    .sb-time  { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+    .sb-tw    { color: #fff; }
+    .sb-td    { color: var(--t1); }
+    .sb-icons { display: flex; align-items: center; gap: 5px; }
+
+    /* ── TOPBAR ─────────────────────────────────────── */
+    .topbar { background: var(--blue); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 44px; z-index: 4; }
+    .tb-brand { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+
+    /* ── PAGE HEADER ────────────────────────────────── */
+    .pgh { background: var(--blue); padding: 6px 16px 10px; flex-shrink: 0; }
+    .pgh h2 { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+    .pgh .s { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+
+    /* ── BOTTOM NAV ─────────────────────────────────── */
+    .bnav { flex-shrink: 0; background: #fff; border-top: 1px solid var(--border); display: flex; }
+    .ntab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 8px; font-weight: 500; color: var(--t3); padding: 8px 0 4px; border-top: 2px solid transparent; }
+    .ntab.on { color: var(--blue); border-top-color: var(--blue); }
+
+    /* ── HOME INDICATOR ─────────────────────────────── */
+    .hi { flex-shrink: 0; height: 22px; background: #fff; display: flex; align-items: center; justify-content: center; }
+    .hi::after { content: ''; display: block; width: 110px; height: 4px; background: rgba(0,0,0,0.18); border-radius: 9999px; }
+    .hi-bg { background: var(--bg); }
+    .hi-bg::after { background: rgba(0,0,0,0.1); }
+
+    /* ── SCROLL ─────────────────────────────────────── */
+    .scr { flex: 1; overflow-y: auto; }
+    .scr::-webkit-scrollbar { display: none; }
+    .pad { padding: 10px; }
+
+    /* ── CARD ───────────────────────────────────────── */
+    .card { background: #fff; border-radius: 11px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 8px; }
+    .cp { padding: 12px; }
+
+    /* ── LABELS ─────────────────────────────────────── */
+    .sl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--t3); margin-bottom: 6px; }
+
+    /* ── BADGE ──────────────────────────────────────── */
+    .badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 9999px; font-size: 8px; font-weight: 600; }
+    .b-g { background: var(--green-l); color: var(--green); }
+    .b-r { background: var(--red-l);   color: var(--red);   }
+    .b-p { background: var(--blue-l);  color: var(--blue);  }
+    .b-a { background: var(--amber-l); color: var(--amber); }
+
+    /* ── FORM ───────────────────────────────────────── */
+    .fl { font-size: 10px; font-weight: 600; color: var(--t2); margin-bottom: 4px; display: block; }
+    .fi { width: 100%; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; font-family: inherit; color: var(--t1); background: #fff; margin-bottom: 8px; line-height: 1.4; }
+    .fi.foc { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .fi.ph { color: #94a3b8; }
+    .bp { width: 100%; padding: 10px; background: var(--blue); color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; text-align: center; }
+    .bg { width: 100%; padding: 10px; background: transparent; border: 1.5px solid var(--border); color: var(--t2); border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; text-align: center; }
+    .pill-row { display: flex; gap: 6px; margin-bottom: 8px; }
+    .pill { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 11px; font-weight: 600; color: var(--t2); text-align: center; }
+    .pill.on { border-color: var(--blue); background: var(--blue-l); color: var(--blue); }
+
+    /* ── PROGRESS ───────────────────────────────────── */
+    .pt { background: #f1f5f9; border-radius: 9999px; height: 5px; overflow: hidden; }
+    .pf { height: 100%; border-radius: 9999px; }
+
+    /* ── SHEET OVERLAY ──────────────────────────────── */
+    .sov { position: absolute; inset: 0; background: rgba(15,23,42,0.5); display: flex; align-items: flex-end; z-index: 30; backdrop-filter: blur(2px); }
+    .sht { background: #fff; width: 100%; border-radius: 20px 20px 0 0; padding: 14px 14px 16px; }
+    .sht-h { width: 34px; height: 4px; background: var(--border); border-radius: 9999px; margin: 0 auto 14px; }
+    .sht-t { font-size: 15px; font-weight: 700; color: var(--t1); margin-bottom: 12px; }
+
+    /* ── MONO ───────────────────────────────────────── */
+    .mono { font-variant-numeric: tabular-nums; }
+    svg { display: inline-block; vertical-align: middle; }
+
+    /* ── EMPTY STATE ────────────────────────────────── */
+    .empty {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 10px; text-align: center; padding: 24px;
+    }
+    .empty-icon { width: 56px; height: 56px; background: var(--blue-l); border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--blue); }
+
+    /* ── FAB ────────────────────────────────────────── */
+    .fab { position: absolute; bottom: 86px; right: 14px; width: 44px; height: 44px; border-radius: 9999px; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(37,99,235,0.5); z-index: 20; }
+
+    /* ── SIDE MENU OVERLAY ──────────────────────────── */
+    .menu-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+    .menu-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 240px; background: #fff; z-index: 41; display: flex; flex-direction: column; box-shadow: -4px 0 24px rgba(0,0,0,0.2); border-radius: 0 0 0 0; overflow: hidden; }
+    .menu-header { background: var(--blue); padding: 48px 16px 16px; }
+    .menu-links { flex: 1; padding: 8px 0; overflow-y: auto; }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--t1); }
+    .menu-item:hover { background: var(--bg); }
+    .menu-section { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--t3); padding: 12px 16px 4px; }
+    .menu-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+
+    /* ── FOOTER ─────────────────────────────────────── */
+    .footer { text-align: center; padding: 48px 24px 64px; border-top: 1px solid rgba(255,255,255,0.04); }
+    .footer p { font-size: 11px; color: #1e293b; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════ INTRO ════════════════════════════ -->
+<div class="intro">
+  <p class="intro-eyebrow">Design Reference · Ref 02</p>
+  <h1>Estados especiales y flujos admin</h1>
+  <p>Pantallas secundarias: menu lateral, estado vacio, categorias (solo admin) y formulario de nueva deuda. Complementa el Ref 01.</p>
+  <div class="intro-badges">
+    <span class="intro-badge">SideMenu</span>
+    <span class="intro-badge">Estado vacio</span>
+    <span class="intro-badge">Categorias (admin)</span>
+    <span class="intro-badge">Nueva deuda (sheet)</span>
+  </div>
+</div>
+
+<!-- ════════════════════ S01 · SIDEMENU ═══════════════════ -->
+<div class="section">
+  <div class="section-meta">
+    <p class="section-num">01 · Menu lateral</p>
+    <p class="section-name">SideMenu</p>
+    <p class="section-desc">Drawer desde la derecha. Muestra el nombre y rol del usuario activo. Los enlaces de Configuracion solo aparecen para rol administradora.</p>
+  </div>
+  <div class="phones">
+
+    <!-- ROL ADMINISTRADORA -->
+    <div class="phone-wrap">
+      <span class="phone-label">Rol: administradora</span>
+      <div class="phone">
+        <div class="phone-screen" style="background:var(--bg);position:relative;">
+          <div class="di" style="background:#000;"></div>
+          <div class="sb sb-light" style="padding-top:4px;">
+            <span class="sb-time sb-tw">9:41</span>
+            <div class="sb-icons">
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".5"/><rect x="22" y="4" width="2.5" height="4" rx="1" fill="white" fill-opacity=".4"/><rect x="1.5" y="1.5" width="16" height="9" rx="2.5" fill="white"/></svg>
+            </div>
+          </div>
+          <div class="topbar"><span class="tb-brand">Finanzas</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></div>
+          <!-- Fondo dimmed -->
+          <div style="flex:1;opacity:0.2;padding:10px;">
+            <div class="sl" style="margin-top:2px;">Junio 2026</div>
+            <div class="card cp"><p class="sl">Balance DOP</p><p style="font-size:22px;font-weight:800;color:var(--blue);" class="mono">45,320 DOP</p></div>
+          </div>
+          <!-- Menu overlay -->
+          <div class="menu-overlay"></div>
+          <div class="menu-panel">
+            <!-- Header -->
+            <div class="menu-header">
+              <p style="font-weight:700;font-size:14px;color:#fff;margin-bottom:4px;letter-spacing:-0.01em;">Yisbel Garcia</p>
+              <div style="display:inline-flex;align-items:center;padding:2px 8px;background:rgba(255,255,255,0.2);border-radius:9999px;font-size:9px;font-weight:600;color:rgba(255,255,255,0.9);letter-spacing:0.06em;text-transform:uppercase;">Administradora</div>
+            </div>
+            <!-- Links -->
+            <div class="menu-links">
+              <div class="menu-section">Configuracion</div>
+              <div class="menu-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                <span style="color:var(--blue);font-weight:600;">Categorias</span>
+              </div>
+              <div class="menu-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" stroke-width="2"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>
+                Cuentas
+              </div>
+              <div style="height:1px;background:var(--border);margin:8px 0;"></div>
+            </div>
+            <!-- Logout -->
+            <div class="menu-footer">
+              <div style="padding:10px;background:var(--red-l);border:1.5px solid #fecaca;border-radius:9px;text-align:center;font-size:13px;font-weight:600;color:var(--red);">Cerrar sesion</div>
+            </div>
+          </div>
+          <div class="bnav" style="opacity:0.2;">
+            <div class="ntab on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg><span>Movimientos</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="22" y2="22"/></svg><span>Cuentas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/></svg><span>Deudas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="18" y1="20" y2="10"/></svg><span>Resumen</span></div>
+          </div>
+          <div class="hi" style="opacity:0.2;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROL AUXILIAR -->
+    <div class="phone-wrap">
+      <span class="phone-label">Rol: auxiliar</span>
+      <div class="phone">
+        <div class="phone-screen" style="background:var(--bg);position:relative;">
+          <div class="di" style="background:#000;"></div>
+          <div class="sb sb-light" style="padding-top:4px;">
+            <span class="sb-time sb-tw">9:41</span>
+            <div class="sb-icons"><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".5"/><rect x="22" y="4" width="2.5" height="4" rx="1" fill="white" fill-opacity=".4"/><rect x="1.5" y="1.5" width="9" height="9" rx="2.5" fill="white"/></svg></div>
+          </div>
+          <div class="topbar"><span class="tb-brand">Finanzas</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></div>
+          <div style="flex:1;opacity:0.2;padding:10px;">
+            <div class="sl" style="margin-top:2px;">Junio 2026</div>
+            <div class="card cp"><p class="sl">Balance DOP</p><p style="font-size:22px;font-weight:800;color:var(--blue);" class="mono">45,320 DOP</p></div>
+          </div>
+          <div class="menu-overlay"></div>
+          <div class="menu-panel">
+            <div class="menu-header">
+              <p style="font-weight:700;font-size:14px;color:#fff;margin-bottom:4px;letter-spacing:-0.01em;">Maria Rodriguez</p>
+              <div style="display:inline-flex;align-items:center;padding:2px 8px;background:rgba(255,255,255,0.2);border-radius:9999px;font-size:9px;font-weight:600;color:rgba(255,255,255,0.9);letter-spacing:0.06em;text-transform:uppercase;">Auxiliar</div>
+            </div>
+            <div class="menu-links">
+              <!-- Auxiliar no ve configuracion — solo el boton de logout -->
+              <div style="padding:16px;font-size:12px;color:var(--t3);line-height:1.5;">
+                Solo la administradora puede acceder a la configuracion del sistema.
+              </div>
+            </div>
+            <div class="menu-footer">
+              <div style="padding:10px;background:var(--red-l);border:1.5px solid #fecaca;border-radius:9px;text-align:center;font-size:13px;font-weight:600;color:var(--red);">Cerrar sesion</div>
+            </div>
+          </div>
+          <div class="bnav" style="opacity:0.2;">
+            <div class="ntab on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg><span>Movimientos</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="22" y2="22"/></svg><span>Cuentas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/></svg><span>Deudas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="18" y1="20" y2="10"/></svg><span>Resumen</span></div>
+          </div>
+          <div class="hi" style="opacity:0.2;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════ S02 · ESTADOS VACIOS ═════════════ -->
+<div class="section">
+  <div class="section-meta">
+    <p class="section-num">02 · Estados vacios</p>
+    <p class="section-name">Empty states</p>
+    <p class="section-desc">Cuando no hay datos, el estado vacio guia al usuario a crear el primer registro. Icono SVG propio + texto breve + CTA implicito (FAB visible).</p>
+  </div>
+  <div class="phones">
+
+    <!-- MOVIMIENTOS VACIO -->
+    <div class="phone-wrap">
+      <span class="phone-label">Sin movimientos</span>
+      <div class="phone">
+        <div class="phone-screen" style="position:relative;">
+          <div class="di" style="background:#000;"></div>
+          <div class="sb sb-light" style="padding-top:4px;">
+            <span class="sb-time sb-tw">9:41</span>
+            <div class="sb-icons"><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".5"/><rect x="22" y="4" width="2.5" height="4" rx="1" fill="white" fill-opacity=".4"/><rect x="1.5" y="1.5" width="16" height="9" rx="2.5" fill="white"/></svg></div>
+          </div>
+          <div class="pgh" style="padding-top:2px;display:flex;justify-content:space-between;align-items:center;">
+            <h2>Movimientos</h2>
+            <span style="font-size:11px;font-weight:500;color:rgba(255,255,255,0.8);">Yisbel</span>
+          </div>
+          <div class="empty">
+            <div class="empty-icon">
+              <!-- IconWallet -->
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>
+              </svg>
+            </div>
+            <p style="font-size:14px;font-weight:600;color:var(--t1);">Sin movimientos</p>
+            <p style="font-size:12px;color:var(--t3);line-height:1.5;">Toca + para agregar el primero.</p>
+          </div>
+          <div class="fab"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg></div>
+          <div class="bnav">
+            <div class="ntab on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg><span>Movimientos</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg><span>Cuentas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/></svg><span>Deudas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/><line x1="2" x2="22" y1="20" y2="20"/></svg><span>Resumen</span></div>
+          </div>
+          <div class="hi"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEUDAS VACIO -->
+    <div class="phone-wrap">
+      <span class="phone-label">Sin deudas</span>
+      <div class="phone">
+        <div class="phone-screen" style="position:relative;">
+          <div class="di" style="background:#000;"></div>
+          <div class="sb sb-light" style="padding-top:4px;">
+            <span class="sb-time sb-tw">9:41</span>
+            <div class="sb-icons"><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".5"/><rect x="22" y="4" width="2.5" height="4" rx="1" fill="white" fill-opacity=".4"/><rect x="1.5" y="1.5" width="16" height="9" rx="2.5" fill="white"/></svg></div>
+          </div>
+          <div class="pgh" style="padding-top:2px;display:flex;justify-content:space-between;align-items:center;">
+            <h2>Deudas</h2>
+            <span style="font-size:11px;font-weight:500;color:rgba(255,255,255,0.8);">0 activas</span>
+          </div>
+          <div class="empty">
+            <div class="empty-icon" style="background:var(--green-l);color:var(--green);">
+              <!-- Check icon -->
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <p style="font-size:14px;font-weight:600;color:var(--t1);">Sin deudas registradas</p>
+            <p style="font-size:12px;color:var(--t3);line-height:1.5;">Toca + para registrar una deuda o obligacion.</p>
+          </div>
+          <div class="fab"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg></div>
+          <div class="bnav">
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg><span>Movimientos</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg><span>Cuentas</span></div>
+            <div class="ntab on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/></svg><span>Deudas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/><line x1="2" x2="22" y1="20" y2="20"/></svg><span>Resumen</span></div>
+          </div>
+          <div class="hi"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════ S03 · CATEGORIAS (ADMIN) ════════ -->
+<div class="section">
+  <div class="section-meta">
+    <p class="section-num">03 · Configuracion (admin)</p>
+    <p class="section-name">Categorias</p>
+    <p class="section-desc">Solo visible para rol administradora. CRUD de categorias con tipo ingreso/gasto. Accesible desde el menu lateral. Ruta: /config/categorias.</p>
+  </div>
+  <div class="phones">
+
+    <!-- LISTA DE CATEGORIAS -->
+    <div class="phone-wrap">
+      <span class="phone-label">Lista de categorias</span>
+      <div class="phone">
+        <div class="phone-screen" style="position:relative;">
+          <div class="di" style="background:#000;"></div>
+          <div class="sb sb-light" style="padding-top:4px;">
+            <span class="sb-time sb-tw">9:41</span>
+            <div class="sb-icons"><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".5"/><rect x="22" y="4" width="2.5" height="4" rx="1" fill="white" fill-opacity=".4"/><rect x="1.5" y="1.5" width="16" height="9" rx="2.5" fill="white"/></svg></div>
+          </div>
+          <div class="topbar">
+            <span class="tb-brand">Finanzas</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+          </div>
+          <div class="pgh" style="padding-top:2px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <h2>Categorias</h2>
+              <div class="s">Solo administradora</div>
+            </div>
+          </div>
+          <div class="scr">
+            <div class="pad">
+              <p class="sl" style="margin-top:2px;">Ingresos</p>
+              <!-- Cat ingreso -->
+              <div class="card" style="overflow:hidden;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:8px;height:8px;border-radius:9999px;background:var(--green);flex-shrink:0;"></div>
+                    <span style="font-size:12px;font-weight:600;color:var(--t1);">Ingresos</span>
+                    <div class="badge b-g">ingreso</div>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <span style="font-size:10px;font-weight:500;color:var(--blue);padding:4px 8px;border:1px solid var(--blue-m);background:var(--blue-l);border-radius:6px;">Editar</span>
+                    <span style="font-size:10px;font-weight:500;color:var(--red);padding:4px 8px;border:1px solid #fecaca;background:var(--red-l);border-radius:6px;">Eliminar</span>
+                  </div>
+                </div>
+              </div>
+              <div class="card" style="overflow:hidden;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:8px;height:8px;border-radius:9999px;background:var(--green);flex-shrink:0;"></div>
+                    <span style="font-size:12px;font-weight:600;color:var(--t1);">Freelance</span>
+                    <div class="badge b-g">ingreso</div>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <span style="font-size:10px;font-weight:500;color:var(--blue);padding:4px 8px;border:1px solid var(--blue-m);background:var(--blue-l);border-radius:6px;">Editar</span>
+                    <span style="font-size:10px;font-weight:500;color:var(--red);padding:4px 8px;border:1px solid #fecaca;background:var(--red-l);border-radius:6px;">Eliminar</span>
+                  </div>
+                </div>
+              </div>
+
+              <p class="sl" style="margin-top:10px;">Gastos</p>
+              <!-- Cat gasto rows -->
+              <div class="card" style="overflow:hidden;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:8px;height:8px;border-radius:9999px;background:var(--red);flex-shrink:0;"></div>
+                    <span style="font-size:12px;font-weight:600;color:var(--t1);">Alimentacion</span>
+                    <div class="badge b-r">gasto</div>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <span style="font-size:10px;font-weight:500;color:var(--blue);padding:4px 8px;border:1px solid var(--blue-m);background:var(--blue-l);border-radius:6px;">Editar</span>
+                    <span style="font-size:10px;font-weight:500;color:var(--red);padding:4px 8px;border:1px solid #fecaca;background:var(--red-l);border-radius:6px;">Eliminar</span>
+                  </div>
+                </div>
+              </div>
+              <div class="card" style="overflow:hidden;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:8px;height:8px;border-radius:9999px;background:var(--red);flex-shrink:0;"></div>
+                    <span style="font-size:12px;font-weight:600;color:var(--t1);">Servicios</span>
+                    <div class="badge b-r">gasto</div>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <span style="font-size:10px;font-weight:500;color:var(--blue);padding:4px 8px;border:1px solid var(--blue-m);background:var(--blue-l);border-radius:6px;">Editar</span>
+                    <span style="font-size:10px;font-weight:500;color:var(--red);padding:4px 8px;border:1px solid #fecaca;background:var(--red-l);border-radius:6px;">Eliminar</span>
+                  </div>
+                </div>
+              </div>
+              <div class="card" style="overflow:hidden;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:8px;height:8px;border-radius:9999px;background:var(--red);flex-shrink:0;"></div>
+                    <span style="font-size:12px;font-weight:600;color:var(--t1);">Transporte</span>
+                    <div class="badge b-r">gasto</div>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <span style="font-size:10px;font-weight:500;color:var(--blue);padding:4px 8px;border:1px solid var(--blue-m);background:var(--blue-l);border-radius:6px;">Editar</span>
+                    <span style="font-size:10px;font-weight:500;color:var(--red);padding:4px 8px;border:1px solid #fecaca;background:var(--red-l);border-radius:6px;">Eliminar</span>
+                  </div>
+                </div>
+              </div>
+              <div class="card" style="overflow:hidden;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:8px;height:8px;border-radius:9999px;background:var(--red);flex-shrink:0;"></div>
+                    <span style="font-size:12px;font-weight:600;color:var(--t1);">Salud</span>
+                    <div class="badge b-r">gasto</div>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <span style="font-size:10px;font-weight:500;color:var(--blue);padding:4px 8px;border:1px solid var(--blue-m);background:var(--blue-l);border-radius:6px;">Editar</span>
+                    <span style="font-size:10px;font-weight:500;color:var(--red);padding:4px 8px;border:1px solid #fecaca;background:var(--red-l);border-radius:6px;">Eliminar</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- FAB para nueva cat -->
+          <div class="fab"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg></div>
+          <!-- Solo topbar + no bottom nav (ruta de config) -->
+          <div style="flex-shrink:0;height:34px;background:#fff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;">
+            <div style="width:110px;height:4px;background:rgba(0,0,0,0.18);border-radius:9999px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHEET NUEVA CATEGORIA -->
+    <div class="phone-wrap">
+      <span class="phone-label">Sheet: Nueva categoria</span>
+      <div class="phone">
+        <div class="phone-screen" style="position:relative;">
+          <div class="di" style="background:#000;"></div>
+          <div class="sb sb-light" style="padding-top:4px;">
+            <span class="sb-time sb-tw">9:41</span>
+            <div class="sb-icons"><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".5"/><rect x="22" y="4" width="2.5" height="4" rx="1" fill="white" fill-opacity=".4"/><rect x="1.5" y="1.5" width="16" height="9" rx="2.5" fill="white"/></svg></div>
+          </div>
+          <div class="topbar"><span class="tb-brand">Finanzas</span></div>
+          <div class="pgh" style="padding-top:2px;"><h2>Categorias</h2><div class="s">Solo administradora</div></div>
+          <div class="scr" style="opacity:.25;">
+            <div class="pad">
+              <p class="sl">Ingresos</p>
+              <div class="card" style="padding:10px 12px;margin-bottom:6px;"><span style="font-size:12px;font-weight:600;color:var(--t1);">Ingresos</span></div>
+              <p class="sl" style="margin-top:8px;">Gastos</p>
+              <div class="card" style="padding:10px 12px;margin-bottom:6px;"><span style="font-size:12px;font-weight:600;color:var(--t1);">Alimentacion</span></div>
+            </div>
+          </div>
+          <!-- Sheet nueva cat -->
+          <div class="sov">
+            <div class="sht">
+              <div class="sht-h"></div>
+              <div class="sht-t">Nueva categoria</div>
+
+              <span class="fl">Nombre</span>
+              <div class="fi foc">Educacion</div>
+
+              <span class="fl">Tipo</span>
+              <div class="pill-row">
+                <div class="pill">Ingreso</div>
+                <div class="pill on">Gasto</div>
+              </div>
+
+              <div style="display:flex;gap:8px;margin-top:4px;">
+                <div class="bg" style="flex:1;">Cancelar</div>
+                <div class="bp" style="flex:2;">Guardar</div>
+              </div>
+            </div>
+          </div>
+          <div style="flex-shrink:0;height:34px;background:#fff;border-top:1px solid var(--border);opacity:.25;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════ S04 · NUEVA DEUDA ════════════════ -->
+<div class="section">
+  <div class="section-meta">
+    <p class="section-num">04 · Deudas</p>
+    <p class="section-name">Formulario de deuda y abono</p>
+    <p class="section-desc">Sheet para registrar una nueva deuda con monto inicial, saldo actual y moneda. Sheet de abono para registrar un pago parcial sobre una deuda existente.</p>
+  </div>
+  <div class="phones">
+
+    <!-- SHEET NUEVA DEUDA -->
+    <div class="phone-wrap">
+      <span class="phone-label">Sheet: Nueva deuda</span>
+      <div class="phone">
+        <div class="phone-screen" style="position:relative;">
+          <div class="di" style="background:#000;"></div>
+          <div class="sb sb-light" style="padding-top:4px;">
+            <span class="sb-time sb-tw">9:41</span>
+            <div class="sb-icons"><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".5"/><rect x="22" y="4" width="2.5" height="4" rx="1" fill="white" fill-opacity=".4"/><rect x="1.5" y="1.5" width="16" height="9" rx="2.5" fill="white"/></svg></div>
+          </div>
+          <div class="pgh" style="padding-top:2px;"><h2>Deudas</h2></div>
+          <div class="scr" style="opacity:.25;">
+            <div class="pad">
+              <div style="background:var(--red-l);border:1px solid #fecaca;border-radius:11px;padding:12px;"><p class="sl" style="color:#991b1b;">Total pendiente</p><p style="font-size:15px;font-weight:700;color:var(--red);" class="mono">182,500.00 DOP</p></div>
+            </div>
+          </div>
+          <!-- Sheet nueva deuda -->
+          <div class="sov">
+            <div class="sht">
+              <div class="sht-h"></div>
+              <div class="sht-t">Nueva deuda</div>
+
+              <span class="fl">Nombre / Acreedor</span>
+              <div class="fi foc">Banco BHD</div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div><span class="fl">Monto original</span><div class="fi">200,000.00</div></div>
+                <div><span class="fl">Moneda</span><div class="fi">DOP</div></div>
+              </div>
+
+              <span class="fl">Saldo actual</span>
+              <div class="fi">200,000.00</div>
+
+              <span class="fl">Interes anual (%)</span>
+              <div class="fi ph">Opcional</div>
+
+              <div style="display:flex;gap:8px;margin-top:4px;">
+                <div class="bg" style="flex:1;">Cancelar</div>
+                <div class="bp" style="flex:2;">Guardar</div>
+              </div>
+            </div>
+          </div>
+          <div class="bnav" style="opacity:.25;">
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg><span>Movimientos</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="22" y2="22"/></svg><span>Cuentas</span></div>
+            <div class="ntab on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/></svg><span>Deudas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="18" y1="20" y2="10"/></svg><span>Resumen</span></div>
+          </div>
+          <div class="hi" style="opacity:.25;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHEET ABONO -->
+    <div class="phone-wrap">
+      <span class="phone-label">Sheet: Registrar abono</span>
+      <div class="phone">
+        <div class="phone-screen" style="position:relative;">
+          <div class="di" style="background:#000;"></div>
+          <div class="sb sb-light" style="padding-top:4px;">
+            <span class="sb-time sb-tw">9:41</span>
+            <div class="sb-icons"><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity=".5"/><rect x="22" y="4" width="2.5" height="4" rx="1" fill="white" fill-opacity=".4"/><rect x="1.5" y="1.5" width="16" height="9" rx="2.5" fill="white"/></svg></div>
+          </div>
+          <div class="pgh" style="padding-top:2px;"><h2>Deudas</h2></div>
+          <div class="scr" style="opacity:.25;">
+            <div class="pad">
+              <div class="card cp" style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                  <div><p style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:3px;">Banco Popular TC</p><div class="badge b-a">36% anual</div></div>
+                  <div style="text-align:right;"><p style="font-size:16px;font-weight:800;color:var(--red);" class="mono">82,500</p><p style="font-size:9px;color:var(--t3);">de 150,000 DOP</p></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Sheet abono -->
+          <div class="sov">
+            <div class="sht">
+              <div class="sht-h"></div>
+              <div class="sht-t">Registrar abono</div>
+              <!-- Context card -->
+              <div style="background:var(--blue-l);border:1px solid var(--blue-m);border-radius:9px;padding:10px 12px;margin-bottom:12px;">
+                <p style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:2px;">Banco Popular TC</p>
+                <p style="font-size:12px;font-weight:700;color:var(--t1);" class="mono">Saldo actual: 82,500.00 DOP</p>
+              </div>
+
+              <span class="fl">Monto del abono</span>
+              <div class="fi foc">5,000.00</div>
+
+              <span class="fl">Fecha del abono</span>
+              <div class="fi">20/06/2026</div>
+
+              <span class="fl">Nota (opcional)</span>
+              <div class="fi ph">Ej. pago minimo mes de junio</div>
+
+              <!-- Preview del nuevo saldo -->
+              <div style="background:#f8fafc;border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:11px;color:var(--t3);font-weight:500;">Nuevo saldo</span>
+                <span style="font-size:13px;font-weight:700;color:var(--amber);" class="mono">77,500.00 DOP</span>
+              </div>
+
+              <div style="display:flex;gap:8px;">
+                <div class="bg" style="flex:1;">Cancelar</div>
+                <div class="bp" style="flex:2;">Guardar abono</div>
+              </div>
+            </div>
+          </div>
+          <div class="bnav" style="opacity:.25;">
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg><span>Movimientos</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="22" y2="22"/></svg><span>Cuentas</span></div>
+            <div class="ntab on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/></svg><span>Deudas</span></div>
+            <div class="ntab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="18" y1="20" y2="10"/></svg><span>Resumen</span></div>
+          </div>
+          <div class="hi" style="opacity:.25;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════ FOOTER ══════════════════════════ -->
+<div class="footer">
+  <p>Control Finanzas · Design Reference 02 · Junio 2026</p>
+</div>
+
+</body>
+</html>

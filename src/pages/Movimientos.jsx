@@ -60,9 +60,22 @@ export default function Movimientos() {
 
       <div style={{ padding: 'var(--space-4)' }}>
         {loading && (
-          <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-10)' }}>
-            Cargando...
-          </p>
+          <div>
+            <div className="ds-skeleton" style={{ height: 10, width: 140, marginBottom: 'var(--space-3)' }} />
+            {[0, 1, 2].map(i => (
+              <div key={i} className="ds-card" style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: 'var(--space-4)', marginBottom: 'var(--space-2)',
+                borderLeft: '3px solid var(--color-border)',
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div className="ds-skeleton" style={{ height: 13, width: '55%', marginBottom: 'var(--space-2)' }} />
+                  <div className="ds-skeleton" style={{ height: 10, width: '35%' }} />
+                </div>
+                <div className="ds-skeleton" style={{ height: 18, width: 80 }} />
+              </div>
+            ))}
+          </div>
         )}
 
         {!loading && movimientos.length === 0 && (
@@ -134,7 +147,7 @@ function MovimientoCard({ m, isAdmin, onEdit, onDelete }) {
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', marginBottom: '2px', color: 'var(--color-text-primary)' }}>
-          {m.concepto || m.categorias?.nombre || '—'}
+          {m.concepto || m.categorias?.nombre || '-'}
         </p>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span>

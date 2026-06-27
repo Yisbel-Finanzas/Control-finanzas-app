@@ -66,9 +66,17 @@ export default function Dashboard() {
 
       <div style={{ padding: 'var(--space-3)' }}>
         {loading ? (
-          <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-12)' }}>
-            Cargando...
-          </p>
+          <div>
+            <div className="ds-skeleton" style={{ height: 10, width: 90, marginBottom: 'var(--space-3)' }} />
+            <div className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
+              <div className="ds-skeleton" style={{ height: 10, width: 60, marginBottom: 'var(--space-3)' }} />
+              <div className="ds-skeleton" style={{ height: 34, width: '70%', marginBottom: 'var(--space-4)' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+                <div className="ds-skeleton" style={{ height: 64, borderRadius: 'var(--radius-md)' }} />
+                <div className="ds-skeleton" style={{ height: 64, borderRadius: 'var(--radius-md)' }} />
+              </div>
+            </div>
+          </div>
         ) : (
           <>
             <p className="ds-section-label" style={{ textTransform: 'capitalize', marginBottom: 'var(--space-3)' }}>

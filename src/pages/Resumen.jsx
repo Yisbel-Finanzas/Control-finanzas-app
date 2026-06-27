@@ -342,9 +342,9 @@ export default function Resumen() {
                           if (ing === 0 && gas === 0) return (
                             <tr key={mes} style={{ borderBottom: '1px solid var(--color-border)', opacity: 0.35 }}>
                               <td style={tdStyle}>{mesCorto(mes)}</td>
-                              <td style={tdStyle}>—</td>
-                              <td style={tdStyle}>—</td>
-                              <td style={tdStyle}>—</td>
+                              <td style={tdStyle}>-</td>
+                              <td style={tdStyle}>-</td>
+                              <td style={tdStyle}>-</td>
                             </tr>
                           )
                           return (

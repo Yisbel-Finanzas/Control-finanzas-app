@@ -49,7 +49,7 @@ export default function SideMenu({ id, perfil, onClose }) {
           padding: 'var(--space-6) var(--space-5)',
         }}>
           <p style={{ fontWeight: 700, fontSize: 'var(--text-base)', marginBottom: 'var(--space-1)' }}>
-            {perfil?.nombre || '—'}
+            {perfil?.nombre || '-'}
           </p>
           <span className="ds-badge ds-badge-primary" style={{
             background: 'rgb(255 255 255 / 0.2)',
