@@ -17,7 +17,7 @@ function ProductoIcon({ producto, size = 20 }) {
   return <IconBank size={size} />
 }
 
-const emptyForm = { banco: '', producto: 'Cuenta corriente' }
+const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP' }
 
 export default function Cuentas() {
   const perfil = usePerfil()
@@ -41,7 +41,7 @@ export default function Cuentas() {
   useEffect(() => { fetchCuentas() }, [])
 
   function openNew()  { setEditItem(null); setForm(emptyForm); setShowForm(true) }
-  function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente' }); setShowForm(true) }
+  function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda || 'DOP' }); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditItem(null) }
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -52,7 +52,7 @@ export default function Cuentas() {
     // Diagnóstico: verificar rol antes de insertar
     const { data: rolData } = await supabase.rpc('mi_rol')
     console.log('mi_rol() result:', rolData)
-    const payload = { banco: form.banco.trim(), producto: form.producto }
+    const payload = { banco: form.banco.trim(), producto: form.producto, moneda: form.moneda }
     let error
     if (editItem) {
       ({ error } = await supabase.from('cuentas').update(payload).eq('id', editItem.id))
@@ -159,6 +159,14 @@ export default function Cuentas() {
                 </select>
               </div>
 
+              <div className="ds-field">
+                <label htmlFor="moneda" className="ds-label">Moneda</label>
+                <select id="moneda" value={form.moneda} onChange={e => set('moneda', e.target.value)} className="ds-input">
+                  <option value="DOP">DOP – Peso dominicano</option>
+                  <option value="USD">USD – Dólar estadounidense</option>
+                </select>
+              </div>
+
               <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
                 <button type="button" onClick={closeForm} className="ds-btn ds-btn-ghost" style={{ flex: 1 }}>
                   Cancelar
@@ -197,7 +205,7 @@ function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete }) {
         </div>
         <div>
           <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>{c.banco}</p>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{c.producto}</p>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{c.producto} · {c.moneda}</p>
         </div>
       </div>
 
