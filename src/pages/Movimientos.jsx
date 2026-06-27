@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import MovimientoForm from '../components/MovimientoForm'
-import { IconWallet, IconRepeat, IconPlus, IconX } from '../components/icons/NavIcons'
+import { IconWallet, IconRepeat, IconPlus, IconX, IconDownload } from '../components/icons/NavIcons'
 
 const FILTROS_INIT = {
   search: '',
@@ -26,7 +27,7 @@ export default function Movimientos() {
     setLoading(true)
     const { data } = await supabase
       .from('movimientos')
-      .select('*, categorias(nombre)')
+      .select('*, categorias(nombre), cuentas(banco, producto)')
       .is('deleted_at', null)
       .order('fecha', { ascending: false })
       .limit(500)
@@ -84,6 +85,32 @@ export default function Movimientos() {
     }, {})
   , [movimientosFiltrados])
 
+  function exportarExcel() {
+    if (!movimientosFiltrados.length) return
+    const rows = movimientosFiltrados.map(m => ({
+      'Fecha':        m.fecha,
+      'Tipo':         m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto',
+      'Categoría':    m.categorias?.nombre || '',
+      'Subcategoría': m.subcategoria || '',
+      'Concepto':     m.concepto || '',
+      'Monto':        Number(m.monto),
+      'Moneda':       m.moneda,
+      'Cuenta':       m.cuentas ? `${m.cuentas.banco} · ${m.cuentas.producto}` : '',
+      'Recurrente':   m.recurrente ? 'Sí' : 'No',
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [
+      { wch: 12 }, { wch: 9 }, { wch: 20 }, { wch: 18 },
+      { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 24 }, { wch: 11 },
+    ]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Movimientos')
+    const etiqueta = filtros.desde && filtros.hasta
+      ? `_${filtros.desde}_${filtros.hasta}`
+      : `_${new Date().toISOString().split('T')[0]}`
+    XLSX.writeFile(wb, `movimientos${etiqueta}.xlsx`)
+  }
+
   function handleNew() { setEditItem(null); setShowForm(true) }
   function handleEdit(m) { setEditItem(m); setShowForm(true) }
   function handleClose() { setShowForm(false); setEditItem(null) }
@@ -103,9 +130,28 @@ export default function Movimientos() {
       <div className="ds-page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1>Movimientos</h1>
-          <span style={{ fontSize: 'var(--text-sm)', opacity: 0.85, fontWeight: 500 }}>
-            {perfil?.nombre}
-          </span>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+            {!loading && movimientosFiltrados.length > 0 && (
+              <button
+                onClick={exportarExcel}
+                aria-label="Exportar a Excel"
+                title="Exportar a Excel"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  background: 'rgba(255,255,255,0.15)',
+                  border: '1px solid rgba(255,255,255,0.30)',
+                  color: '#fff', borderRadius: 'var(--radius-sm)',
+                  padding: '5px 10px', cursor: 'pointer',
+                  fontSize: 'var(--text-xs)', fontWeight: 600,
+                }}
+              >
+                <IconDownload size={13} /> Excel
+              </button>
+            )}
+            <span style={{ fontSize: 'var(--text-sm)', opacity: 0.85, fontWeight: 500 }}>
+              {perfil?.nombre}
+            </span>
+          </div>
         </div>
       </div>
 
