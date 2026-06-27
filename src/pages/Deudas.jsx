@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import { IconList, IconPlus } from '../components/icons/NavIcons'
 
-const emptyDeuda = { nombre: '', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '' }
+const emptyDeuda = { nombre: '', tipo: 'prestamo', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '' }
 const emptyAbono = { monto: '', moneda: 'DOP', fecha: new Date().toISOString().split('T')[0], cuenta_origen_id: '', categoria_id: '' }
 
 export default function Deudas() {
@@ -49,6 +49,7 @@ export default function Deudas() {
     setEditDeuda(d)
     setFormDeuda({
       nombre: d.nombre,
+      tipo: d.tipo || 'prestamo',
       moneda: d.moneda,
       saldo_actual: d.saldo_actual ?? '',
       limite_o_monto_original: d.limite_o_monto_original ?? '',
@@ -71,8 +72,8 @@ export default function Deudas() {
     setSaving(true)
     const payload = {
       nombre: formDeuda.nombre.trim(),
+      tipo: formDeuda.tipo,
       moneda: formDeuda.moneda,
-      tipo: 'por_pagar',
       saldo_actual: formDeuda.saldo_actual !== '' ? parseFloat(formDeuda.saldo_actual) : null,
       limite_o_monto_original: formDeuda.limite_o_monto_original !== '' ? parseFloat(formDeuda.limite_o_monto_original) : null,
       tasa_interes: formDeuda.tasa_interes !== '' ? parseFloat(formDeuda.tasa_interes) : null,
@@ -215,6 +216,24 @@ export default function Deudas() {
                 onChange={e => setD('nombre', e.target.value)}
                 placeholder="Ej: Banco Popular TC, Préstamo BanReservas"
                 required className="ds-input" />
+            </div>
+
+            <div className="ds-field">
+              <p className="ds-label" id="tipo-deuda-label">Tipo</p>
+              <div role="group" aria-labelledby="tipo-deuda-label" style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                {[['prestamo', 'Préstamo'], ['tarjeta_credito', 'Tarjeta de crédito']].map(([val, label]) => (
+                  <button key={val} type="button" aria-pressed={formDeuda.tipo === val}
+                    onClick={() => setD('tipo', val)}
+                    style={{
+                      flex: 1, padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-md)',
+                      border: `2px solid ${formDeuda.tipo === val ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                      background: formDeuda.tipo === val ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                      color: formDeuda.tipo === val ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                      fontWeight: 600, cursor: 'pointer', fontSize: 'var(--text-sm)',
+                    }}>{label}</button>
+                ))}
+              </div>
             </div>
 
             <div className="ds-field">
