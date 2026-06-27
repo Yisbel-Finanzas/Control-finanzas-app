@@ -38,10 +38,12 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!form.cuenta_id) { alert('Seleccioná una cuenta antes de continuar.'); return }
     setLoading(true)
     const payload = {
       ...form,
       monto: parseFloat(form.monto),
+      cuenta_id: form.cuenta_id || null,
       created_by: perfil?.id,
     }
     let error

@@ -71,7 +71,7 @@ export default function Resumen() {
       setMovs(cur)
       setMovsPrev(prev)
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))
   }, [year, month])
 
   useEffect(() => {
@@ -224,10 +224,9 @@ export default function Resumen() {
                 {gastosCat.length > 0 && (
                   <div style={cardStyle}>
                     <p style={sectionLabel}>Gastos por categoría</p>
-                    {gastosCat.map(({ nombre, montos, totalDOP, totalUSD }) => {
+                    {gastosCat.map(({ nombre, totalDOP, totalUSD }) => {
                       const pctDOP = totalGastosDOP > 0 ? (totalDOP / totalGastosDOP) * 100 : 0
                       const pctUSD = totalGastosUSD > 0 ? (totalUSD / totalGastosUSD) * 100 : 0
-                      const pct = pctDOP || pctUSD
                       return (
                         <div key={nombre} style={{ marginBottom: '0.65rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
@@ -237,14 +236,22 @@ export default function Resumen() {
                               {totalUSD > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#dc2626', display: 'block' }}>{fmt(totalUSD, 'USD')}</span>}
                             </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <div style={{ flex: 1, background: '#f3f4f6', borderRadius: '4px', height: '5px' }}>
-                              <div style={{ width: `${pct}%`, height: '100%', borderRadius: '4px', background: '#dc2626' }} />
+                          {totalDOP > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ flex: 1, background: '#f3f4f6', borderRadius: '4px', height: '5px' }}>
+                                <div style={{ width: `${pctDOP}%`, height: '100%', borderRadius: '4px', background: '#dc2626' }} />
+                              </div>
+                              <span style={{ fontSize: '0.7rem', color: '#9ca3af', minWidth: '32px', textAlign: 'right' }}>{pctDOP.toFixed(0)}%</span>
                             </div>
-                            <span style={{ fontSize: '0.7rem', color: '#9ca3af', minWidth: '32px', textAlign: 'right' }}>
-                              {pct.toFixed(0)}%
-                            </span>
-                          </div>
+                          )}
+                          {totalUSD > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2px' }}>
+                              <div style={{ flex: 1, background: '#f3f4f6', borderRadius: '4px', height: '5px' }}>
+                                <div style={{ width: `${pctUSD}%`, height: '100%', borderRadius: '4px', background: '#f59e0b' }} />
+                              </div>
+                              <span style={{ fontSize: '0.7rem', color: '#9ca3af', minWidth: '32px', textAlign: 'right' }}>{pctUSD.toFixed(0)}%</span>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
