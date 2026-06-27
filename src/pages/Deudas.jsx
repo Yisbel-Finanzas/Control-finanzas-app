@@ -79,12 +79,14 @@ export default function Deudas() {
       fecha_ultima_actualizacion: new Date().toISOString().split('T')[0],
       activo: true,
     }
+    let error
     if (editDeuda) {
-      await supabase.from('deudas').update(payload).eq('id', editDeuda.id)
+      ({ error } = await supabase.from('deudas').update(payload).eq('id', editDeuda.id))
     } else {
-      await supabase.from('deudas').insert(payload)
+      ({ error } = await supabase.from('deudas').insert(payload))
     }
     setSaving(false)
+    if (error) { alert('Error al guardar: ' + (error.message || JSON.stringify(error))); return }
     setShowDeudaForm(false)
     await fetchDeudas()
   }
@@ -99,7 +101,7 @@ export default function Deudas() {
     setSaving(true)
     const monto = parseFloat(formAbono.monto)
     const nuevoSaldo = (deudaParaAbonar.saldo_actual || 0) - monto
-    await Promise.all([
+    const results = await Promise.all([
       supabase.from('abonos_deuda').insert({
         deuda_id: deudaParaAbonar.id,
         monto,
@@ -125,6 +127,8 @@ export default function Deudas() {
       }),
     ])
     setSaving(false)
+    const abonoErr = results.find(r => r.error)?.error
+    if (abonoErr) { alert('Error al registrar abono: ' + (abonoErr.message || JSON.stringify(abonoErr))); return }
     setShowAbonoForm(false)
     await fetchDeudas()
   }
