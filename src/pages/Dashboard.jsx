@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { IconGoal } from '../components/icons/NavIcons'
 
 function fmt(n, moneda) {
   return Number(n).toLocaleString('es-DO', { minimumFractionDigits: 2 }) + ' ' + moneda
@@ -24,9 +26,11 @@ const CHART_COLORS = ['#6FAE8A', '#D96B6B']
 
 export default function Dashboard() {
   const perfil = usePerfil()
+  const navigate = useNavigate()
   const [balance, setBalance] = useState({ ingresos: {}, gastos: {} })
   const [deudaTotal, setDeudaTotal] = useState({})
   const [recientes, setRecientes] = useState([])
+  const [metas, setMetas] = useState([])
   const [loading, setLoading] = useState(true)
 
   const now = new Date()
@@ -54,7 +58,13 @@ export default function Dashboard() {
         .is('deleted_at', null)
         .order('fecha', { ascending: false })
         .limit(5),
-    ]).then(([{ data: movs }, { data: deudas }, { data: rec }]) => {
+      supabase
+        .from('metas_ahorro')
+        .select('id, nombre, monto_objetivo, monto_actual, moneda, fecha_objetivo')
+        .eq('activo', true)
+        .order('created_at', { ascending: false })
+        .limit(3),
+    ]).then(([{ data: movs }, { data: deudas }, { data: rec }, { data: mts }]) => {
       const bal = { ingresos: {}, gastos: {} }
       ;(movs || []).forEach(m => {
         const b = m.tipo === 'ingreso' ? bal.ingresos : bal.gastos
@@ -68,6 +78,7 @@ export default function Dashboard() {
       })
       setDeudaTotal(dt)
       setRecientes(rec || [])
+      setMetas((mts || []).filter(m => Number(m.monto_actual) < Number(m.monto_objetivo)))
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [year, month])
@@ -217,6 +228,38 @@ export default function Dashboard() {
                     </p>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Metas de ahorro */}
+            {metas.length > 0 && (
+              <div className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+                  <p className="ds-section-label" style={{ margin: 0 }}>Metas de ahorro</p>
+                  <button
+                    onClick={() => navigate('/metas')}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
+                    Ver todas →
+                  </button>
+                </div>
+                {metas.map(m => {
+                  const pct = Math.min(100, Math.round((Number(m.monto_actual) / Number(m.monto_objetivo)) * 100))
+                  return (
+                    <div key={m.id} style={{ marginBottom: 'var(--space-3)' }} onClick={() => navigate('/metas')} role="button" tabIndex={0} style={{ cursor: 'pointer', marginBottom: 'var(--space-3)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>{m.nombre}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
+                      </div>
+                      <div className="ds-progress-track">
+                        <div className="ds-progress-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
+                        {fmt(m.monto_actual, m.moneda)} de {fmt(m.monto_objetivo, m.moneda)}
+                      </p>
+                    </div>
+                  )
+                })}
               </div>
             )}
 

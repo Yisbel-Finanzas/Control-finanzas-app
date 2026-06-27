@@ -9,6 +9,7 @@ import Movimientos from './pages/Movimientos'
 import Cuentas from './pages/Cuentas'
 import Deudas from './pages/Deudas'
 import Resumen from './pages/Resumen'
+import Metas from './pages/Metas'
 import ConfigCategorias from './pages/config/Categorias'
 
 // Detectar flujo de invitación o recuperación antes de cualquier render
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/cuentas" element={<Cuentas />} />
         <Route path="/deudas" element={<Deudas />} />
         <Route path="/resumen" element={<Resumen />} />
+        <Route path="/metas" element={<Metas />} />
         <Route path="/config/categorias" element={<ConfigCategorias />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
