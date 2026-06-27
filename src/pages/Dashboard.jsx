@@ -6,6 +6,14 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 function fmt(n, moneda) {
   return Number(n).toLocaleString('es-DO', { minimumFractionDigits: 2 }) + ' ' + moneda
 }
+function saludo(nombre) {
+  const primer = (nombre || '').split(' ')[0]
+  const h = new Date().getHours()
+  if (h < 12) return `Buenos días, ${primer}`
+  if (h < 19) return `Buenas tardes, ${primer}`
+  return `Buenas noches, ${primer}`
+}
+
 function fmtCompact(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
   if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
@@ -72,12 +80,15 @@ export default function Dashboard() {
     <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto' }}>
       {/* Header */}
       <div className="ds-page-header">
-        <h1>Inicio</h1>
-        {perfil?.nombre && (
-          <p style={{ fontSize: 'var(--text-sm)', opacity: 0.82, marginTop: 'var(--space-1)', textTransform: 'capitalize' }}>
-            Hola, {perfil.nombre}
-          </p>
-        )}
+        <p style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.60)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 'var(--space-1)' }}>
+          Inicio
+        </p>
+        <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, letterSpacing: '-0.01em' }}>
+          {perfil?.nombre ? saludo(perfil.nombre) : 'Bienvenida'}
+        </h1>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.65)', marginTop: 'var(--space-1)' }}>
+          Tus finanzas, siempre bajo control
+        </p>
       </div>
 
       <div style={{ padding: 'var(--space-4) var(--space-4) var(--space-6)' }}>

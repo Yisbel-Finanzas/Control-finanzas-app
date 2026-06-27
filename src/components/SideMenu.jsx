@@ -75,6 +75,15 @@ export default function SideMenu({ id, perfil, onClose, dark, onToggleDark }) {
           }}>
             {perfil?.rol}
           </span>
+          <p style={{
+            fontSize: 'var(--text-xs)',
+            color: 'rgba(255,255,255,0.62)',
+            marginTop: 'var(--space-3)',
+            fontStyle: 'italic',
+            lineHeight: 1.5,
+          }}>
+            Bienvenida de nuevo a tu espacio financiero
+          </p>
         </div>
 
         {/* Links */}
