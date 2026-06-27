@@ -141,12 +141,11 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
 
           {/* Cuenta */}
           <div style={fieldStyle}>
-            <label style={labelStyle}>Cuenta <span style={{ fontWeight: 400, color: '#9ca3af' }}>(opcional)</span></label>
-            <select value={form.cuenta_id} onChange={e => set('cuenta_id', e.target.value)} style={inputStyle}>
-              <option value="">Sin cuenta específica</option>
-              {cuentas.map(c => <option key={c.id} value={c.id}>{c.banco} · {c.producto}</option>)}
+            <label style={labelStyle}>Cuenta</label>
+            <select value={form.cuenta_id} onChange={e => set('cuenta_id', e.target.value)} style={inputStyle} required>
+              <option value="">Seleccionar cuenta...</option>
+              {cuentas.map(c => <option key={c.id} value={c.id}>{c.banco}{c.producto !== c.banco ? ` · ${c.producto}` : ''}</option>)}
             </select>
-            <p style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.25rem' }}>De qué cuenta salió o entró el dinero.</p>
           </div>
 
           {/* Nota */}
