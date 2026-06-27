@@ -5,6 +5,7 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
   const [categorias, setCategorias] = useState([])
   const [cuentas, setCuentas] = useState([])
   const [loading, setLoading] = useState(false)
+  const [formError, setFormError] = useState(null)
   const [form, setForm] = useState({
     fecha:       item?.fecha       || new Date().toISOString().split('T')[0],
     tipo:        item?.tipo        || 'gasto',
@@ -30,7 +31,8 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!form.cuenta_id) { alert('Seleccioná una cuenta antes de continuar.'); return }
+    setFormError(null)
+    if (!form.cuenta_id) { setFormError('Selecciona una cuenta antes de continuar.'); return }
     setLoading(true)
     const payload = {
       ...form,
@@ -46,7 +48,7 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
     }
     setLoading(false)
     if (!error) onSave()
-    else alert('Error: ' + error.message)
+    else setFormError(error.message)
   }
 
   return (
@@ -62,6 +64,16 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
         <h2>{item ? 'Editar movimiento' : 'Nuevo movimiento'}</h2>
 
         <form onSubmit={handleSubmit} noValidate>
+          {formError && (
+            <div role="alert" style={{
+              background: 'var(--color-danger-light)', color: 'var(--color-danger)',
+              border: '1px solid #fecaca', borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)',
+            }}>
+              {formError}
+            </div>
+          )}
           {/* Tipo */}
           <div className="ds-field">
             <p className="ds-label" id="tipo-label">Tipo</p>
@@ -84,7 +96,7 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
                       background: active ? (value === 'ingreso' ? 'var(--color-success-light)' : 'var(--color-danger-light)') : 'var(--color-surface)',
                       color: active ? color : 'var(--color-text-muted)',
                       fontWeight: 600, cursor: 'pointer',
-                      transition: 'all var(--transition)',
+                      transition: 'border-color var(--transition), background var(--transition), color var(--transition)',
                     }}
                   >
                     {label}

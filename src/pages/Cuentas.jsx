@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
-import { IconBank, IconCash, IconCreditCard, IconX } from '../components/icons/NavIcons'
+import { IconBank, IconCash, IconCreditCard, IconX, IconPlus } from '../components/icons/NavIcons'
 
 const PRODUCTOS = [
   'Efectivo',
@@ -117,7 +117,7 @@ export default function Cuentas() {
       </div>
 
       {isAdmin && (
-        <button onClick={openNew} className="ds-fab" aria-label="Nueva cuenta">+</button>
+        <button onClick={openNew} className="ds-fab" aria-label="Nueva cuenta"><IconPlus size={24} /></button>
       )}
 
       {showForm && (

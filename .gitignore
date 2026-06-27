@@ -4,3 +4,6 @@ dist
 .env.local
 .DS_Store.agents/ 
 .claude/ 
+.gstack/
+.gstack-review/
+package-lock.json

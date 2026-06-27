@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
-import { IconList } from '../components/icons/NavIcons'
+import { IconList, IconPlus } from '../components/icons/NavIcons'
 
 const emptyDeuda = { nombre: '', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '' }
 const emptyAbono = { monto: '', moneda: 'DOP', fecha: new Date().toISOString().split('T')[0], cuenta_origen_id: '' }
@@ -172,7 +172,7 @@ export default function Deudas() {
       </div>
 
       {isAdmin && (
-        <button onClick={openNuevaDeuda} className="ds-fab" aria-label="Nueva deuda">+</button>
+        <button onClick={openNuevaDeuda} className="ds-fab" aria-label="Nueva deuda"><IconPlus size={24} /></button>
       )}
 
       {/* Modal deuda */}

@@ -418,7 +418,7 @@ function DiffChip({ label, actual, anterior, invertir }) {
 
 const navBtnStyle = {
   background: 'rgba(255,255,255,0.2)', border: 'none', color: 'var(--color-text-inverse)',
-  width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', fontSize: '1.2rem',
+  width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', fontSize: '1.2rem',
   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
 }
 const thStyle = {

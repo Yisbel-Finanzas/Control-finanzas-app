@@ -1,9 +1,22 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { IconEye, IconEyeOff, IconWallet } from '../components/icons/NavIcons'
+
+function friendlyError(msg) {
+  if (!msg) return 'Ocurrió un error. Intenta de nuevo.'
+  const m = msg.toLowerCase()
+  if (m.includes('invalid login credentials') || m.includes('invalid credentials')) return 'Correo o contraseña incorrectos.'
+  if (m.includes('email not confirmed')) return 'Confirma tu correo antes de iniciar sesión.'
+  if (m.includes('too many requests') || m.includes('rate limit')) return 'Demasiados intentos. Espera un momento.'
+  if (m.includes('user not found')) return 'No existe una cuenta con ese correo.'
+  if (m.includes('network') || m.includes('fetch')) return 'Sin conexión. Verifica tu internet.'
+  return msg
+}
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPwd, setShowPwd] = useState(false)
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -14,7 +27,7 @@ export default function Login() {
     setLoading(true)
     setError(null)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
+    if (error) setError(friendlyError(error.message))
     setLoading(false)
   }
 
@@ -26,7 +39,7 @@ export default function Login() {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://yisbel-finanzas.github.io/Control-finanzas-app/',
     })
-    if (error) setError(error.message)
+    if (error) setError(friendlyError(error.message))
     else setMessage('Revisa tu correo para restablecer tu contraseña.')
     setLoading(false)
   }
@@ -38,7 +51,7 @@ export default function Login() {
       minHeight: '100vh', padding: 'var(--space-4)',
       background: 'var(--color-bg)',
     }}>
-      {/* Logo / brand */}
+      {/* Brand */}
       <div style={{ marginBottom: 'var(--space-8)', textAlign: 'center' }}>
         <div style={{
           width: 52, height: 52, borderRadius: 'var(--radius-lg)',
@@ -46,15 +59,18 @@ export default function Login() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto var(--space-3)',
           boxShadow: 'var(--shadow-md)',
+          color: '#fff',
         }}>
-          <span style={{ fontSize: '1.5rem' }}>💰</span>
+          <IconWallet size={26} />
         </div>
         <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
           Control de Finanzas
         </h1>
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>
-          {mode === 'login' ? 'Inicia sesión para continuar' : 'Recupera tu contraseña'}
-        </p>
+        {mode === 'recovery' && (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>
+            Recupera tu contraseña
+          </p>
+        )}
       </div>
 
       {/* Card */}
@@ -98,16 +114,33 @@ export default function Login() {
           {mode === 'login' && (
             <div className="ds-field">
               <label htmlFor="password" className="ds-label">Contraseña</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="ds-input"
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="password"
+                  type={showPwd ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="ds-input"
+                  style={{ paddingRight: '44px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(v => !v)}
+                  aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  style={{
+                    position: 'absolute', right: '0', top: '0',
+                    width: '44px', height: '44px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  {showPwd ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+                </button>
+              </div>
             </div>
           )}
 

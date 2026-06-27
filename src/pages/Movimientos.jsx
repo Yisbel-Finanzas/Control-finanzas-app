@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import MovimientoForm from '../components/MovimientoForm'
-import { IconWallet, IconRepeat } from '../components/icons/NavIcons'
+import { IconWallet, IconRepeat, IconPlus } from '../components/icons/NavIcons'
 
 export default function Movimientos() {
   const perfil = usePerfil()
@@ -94,7 +94,7 @@ export default function Movimientos() {
       </div>
 
       <button onClick={handleNew} className="ds-fab" aria-label="Nuevo movimiento">
-        +
+        <IconPlus size={24} />
       </button>
 
       {showForm && (
@@ -129,6 +129,8 @@ function MovimientoCard({ m, isAdmin, onEdit, onDelete }) {
       }}
       onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
       onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
+      onFocus={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
+      onBlur={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', marginBottom: '2px', color: 'var(--color-text-primary)' }}>
