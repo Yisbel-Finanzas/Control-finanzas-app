@@ -43,7 +43,7 @@ export default function Deudas() {
   async function fetchCuentas() {
     const { data } = await supabase
       .from('cuentas')
-      .select('id,banco,producto,moneda')
+      .select('id,banco,producto')
       .eq('activo', true)
     setCuentas(data || [])
   }
@@ -282,7 +282,7 @@ export default function Deudas() {
               <label style={labelStyle}>Cuenta de origen (opcional)</label>
               <select value={formAbono.cuenta_origen_id} onChange={e => setA('cuenta_origen_id', e.target.value)} style={inputStyle}>
                 <option value="">Sin especificar</option>
-                {cuentas.map(c => <option key={c.id} value={c.id}>{c.banco} · {c.producto} ({c.moneda})</option>)}
+                {cuentas.map(c => <option key={c.id} value={c.id}>{c.banco}{c.producto !== c.banco ? ` · ${c.producto}` : ''}</option>)}
               </select>
             </div>
 

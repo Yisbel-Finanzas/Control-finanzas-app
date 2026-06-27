@@ -29,7 +29,7 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
 
   useEffect(() => {
     supabase.from('categorias').select('id,nombre,tipo').eq('activo', true).then(({ data }) => setCategorias(data || []))
-    supabase.from('cuentas').select('id,nombre,banco,producto,moneda').eq('activo', true).then(({ data }) => setCuentas(data || []))
+    supabase.from('cuentas').select('id,banco,producto').eq('activo', true).then(({ data }) => setCuentas(data || []))
   }, [])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))

@@ -19,7 +19,7 @@ const inputStyle = {
 const labelStyle = { display: 'block', fontSize: '0.8rem', fontWeight: 500, color: '#374151', marginBottom: '0.3rem' }
 const fieldStyle = { marginBottom: '1rem' }
 
-const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP' }
+const emptyForm = { banco: '', producto: 'Cuenta corriente' }
 
 export default function Cuentas() {
   const perfil = usePerfil()
@@ -53,7 +53,7 @@ export default function Cuentas() {
 
   function openEdit(c) {
     setEditItem(c)
-    setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda })
+    setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente' })
     setShowForm(true)
   }
 
@@ -66,7 +66,7 @@ export default function Cuentas() {
     if (!form.banco.trim()) return
     setSaving(true)
 
-    const payload = { banco: form.banco.trim(), producto: form.producto, moneda: form.moneda }
+    const payload = { banco: form.banco.trim(), producto: form.producto }
 
     if (editItem) {
       await supabase.from('cuentas').update(payload).eq('id', editItem.id)
@@ -188,21 +188,6 @@ export default function Cuentas() {
                 </select>
               </div>
 
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Moneda</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {['DOP', 'USD'].map(m => (
-                    <button key={m} type="button" onClick={() => set('moneda', m)} style={{
-                      flex: 1, padding: '0.6rem', borderRadius: '8px', border: '2px solid',
-                      borderColor: form.moneda === m ? '#2563eb' : '#e5e7eb',
-                      background: form.moneda === m ? '#eff6ff' : '#fff',
-                      color: form.moneda === m ? '#2563eb' : '#6b7280',
-                      fontWeight: 600, cursor: 'pointer',
-                    }}>{m}</button>
-                  ))}
-                </div>
-              </div>
-
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button type="button" onClick={closeForm} style={{
                   flex: 1, padding: '0.75rem', borderRadius: '8px',
@@ -244,7 +229,7 @@ function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete }) {
         <span style={{ fontSize: '1.5rem' }}>{iconos[c.producto] || '🏦'}</span>
         <div>
           <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.15rem' }}>{c.banco}</p>
-          <p style={{ fontSize: '0.75rem', color: '#6b7280' }}>{c.producto} · {c.moneda}</p>
+          <p style={{ fontSize: '0.75rem', color: '#6b7280' }}>{c.producto}</p>
         </div>
       </div>
 
