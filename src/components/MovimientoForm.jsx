@@ -1,39 +1,31 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const inputStyle = {
-  width: '100%', padding: '0.6rem 0.75rem',
-  border: '1px solid #d1d5db', borderRadius: '8px',
-  fontSize: '0.95rem', background: '#fff',
-  boxSizing: 'border-box',
-}
-const labelStyle = { display: 'block', fontSize: '0.8rem', fontWeight: 500, color: '#374151', marginBottom: '0.3rem' }
-const fieldStyle = { marginBottom: '1rem' }
-
 export default function MovimientoForm({ item, perfil, onSave, onClose }) {
   const [categorias, setCategorias] = useState([])
   const [cuentas, setCuentas] = useState([])
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
-    fecha: item?.fecha || new Date().toISOString().split('T')[0],
-    tipo: item?.tipo || 'gasto',
+    fecha:       item?.fecha       || new Date().toISOString().split('T')[0],
+    tipo:        item?.tipo        || 'gasto',
     categoria_id: item?.categoria_id || '',
     subcategoria: item?.subcategoria || '',
-    concepto: item?.concepto || '',
-    monto: item?.monto || '',
-    moneda: item?.moneda || 'DOP',
-    cuenta_id: item?.cuenta_id || '',
-    recurrente: item?.recurrente || false,
-    centro: item?.centro || '',
+    concepto:    item?.concepto    || '',
+    monto:       item?.monto       || '',
+    moneda:      item?.moneda      || 'DOP',
+    cuenta_id:   item?.cuenta_id   || '',
+    recurrente:  item?.recurrente  || false,
+    centro:      item?.centro      || '',
   })
 
   useEffect(() => {
-    supabase.from('categorias').select('id,nombre,tipo').eq('activo', true).then(({ data }) => setCategorias(data || []))
-    supabase.from('cuentas').select('id,banco,producto').eq('activo', true).then(({ data }) => setCuentas(data || []))
+    supabase.from('categorias').select('id,nombre,tipo').eq('activo', true)
+      .then(({ data }) => setCategorias(data || []))
+    supabase.from('cuentas').select('id,banco,producto').eq('activo', true)
+      .then(({ data }) => setCuentas(data || []))
   }, [])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
   const categoriasFiltered = categorias.filter(c => c.tipo === form.tipo || c.tipo === 'ambos')
 
   async function handleSubmit(e) {
@@ -42,7 +34,7 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
     setLoading(true)
     const payload = {
       ...form,
-      monto: parseFloat(form.monto),
+      monto:    parseFloat(form.monto),
       cuenta_id: form.cuenta_id || null,
       created_by: perfil?.id,
     }
@@ -58,58 +50,82 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
-      background: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'flex-end',
-    }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', width: '100%', maxHeight: '90vh',
-        borderRadius: '16px 16px 0 0', overflow: 'auto',
-        padding: '1.25rem 1rem 2rem',
-      }}>
-        {/* Handle */}
-        <div style={{ width: '40px', height: '4px', background: '#e5e7eb', borderRadius: '2px', margin: '0 auto 1.25rem' }} />
+    <div className="ds-sheet-overlay" onClick={onClose}>
+      <div
+        className="ds-sheet"
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-label={item ? 'Editar movimiento' : 'Nuevo movimiento'}
+        aria-modal="true"
+      >
+        <div className="ds-sheet-handle" />
+        <h2>{item ? 'Editar movimiento' : 'Nuevo movimiento'}</h2>
 
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.25rem' }}>
-          {item ? 'Editar movimiento' : 'Nuevo movimiento'}
-        </h2>
-
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           {/* Tipo */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Tipo</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {['gasto', 'ingreso'].map(t => (
-                <button key={t} type="button" onClick={() => set('tipo', t)} style={{
-                  flex: 1, padding: '0.6rem', borderRadius: '8px', border: '2px solid',
-                  borderColor: form.tipo === t ? (t === 'ingreso' ? '#16a34a' : '#dc2626') : '#e5e7eb',
-                  background: form.tipo === t ? (t === 'ingreso' ? '#f0fdf4' : '#fef2f2') : '#fff',
-                  color: form.tipo === t ? (t === 'ingreso' ? '#16a34a' : '#dc2626') : '#6b7280',
-                  fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
-                }}>
-                  {t === 'ingreso' ? 'Ingreso' : 'Gasto'}
-                </button>
-              ))}
+          <div className="ds-field">
+            <p className="ds-label" id="tipo-label">Tipo</p>
+            <div role="group" aria-labelledby="tipo-label" style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              {[
+                { value: 'gasto',   label: 'Gasto',   color: 'var(--color-danger)'  },
+                { value: 'ingreso', label: 'Ingreso', color: 'var(--color-success)' },
+              ].map(({ value, label, color }) => {
+                const active = form.tipo === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => set('tipo', value)}
+                    aria-pressed={active}
+                    style={{
+                      flex: 1, padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-md)',
+                      border: `2px solid ${active ? color : 'var(--color-border)'}`,
+                      background: active ? (value === 'ingreso' ? 'var(--color-success-light)' : 'var(--color-danger-light)') : 'var(--color-surface)',
+                      color: active ? color : 'var(--color-text-muted)',
+                      fontWeight: 600, cursor: 'pointer',
+                      transition: 'all var(--transition)',
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           {/* Fecha */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Fecha</label>
-            <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} required style={inputStyle} />
+          <div className="ds-field">
+            <label htmlFor="fecha" className="ds-label">Fecha</label>
+            <input
+              id="fecha"
+              type="date"
+              value={form.fecha}
+              onChange={e => set('fecha', e.target.value)}
+              required
+              className="ds-input"
+            />
           </div>
 
-          {/* Monto y Moneda */}
-          <div style={{ ...fieldStyle, display: 'flex', gap: '0.75rem' }}>
+          {/* Monto + Moneda */}
+          <div className="ds-field" style={{ display: 'flex', gap: 'var(--space-3)' }}>
             <div style={{ flex: 2 }}>
-              <label style={labelStyle}>Monto</label>
-              <input type="number" step="0.01" min="0" value={form.monto}
-                onChange={e => set('monto', e.target.value)} required style={inputStyle} placeholder="0.00" />
+              <label htmlFor="monto" className="ds-label">Monto</label>
+              <input
+                id="monto"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.monto}
+                onChange={e => set('monto', e.target.value)}
+                required
+                placeholder="0.00"
+                className="ds-input"
+              />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Moneda</label>
-              <select value={form.moneda} onChange={e => set('moneda', e.target.value)} style={inputStyle}>
+              <label htmlFor="moneda" className="ds-label">Moneda</label>
+              <select id="moneda" value={form.moneda} onChange={e => set('moneda', e.target.value)} className="ds-input">
                 <option value="DOP">DOP</option>
                 <option value="USD">USD</option>
               </select>
@@ -117,66 +133,96 @@ export default function MovimientoForm({ item, perfil, onSave, onClose }) {
           </div>
 
           {/* Categoría */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Categoría</label>
-            <select value={form.categoria_id} onChange={e => set('categoria_id', e.target.value)} style={inputStyle}>
+          <div className="ds-field">
+            <label htmlFor="categoria" className="ds-label">Categoría</label>
+            <select id="categoria" value={form.categoria_id} onChange={e => set('categoria_id', e.target.value)} className="ds-input">
               <option value="">Seleccionar...</option>
-              {categoriasFiltered.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              {categoriasFiltered.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
             </select>
           </div>
 
           {/* Subcategoría */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Subcategoría <span style={{ fontWeight: 400, color: '#9ca3af' }}>(opcional)</span></label>
-            <input type="text" value={form.subcategoria} onChange={e => set('subcategoria', e.target.value)}
-              style={inputStyle} placeholder="Detalle dentro de la categoría · Ej: Laboratorio, Gasolina" />
-            <p style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.25rem' }}>Úsala para clasificar más fino dentro de la categoría seleccionada.</p>
+          <div className="ds-field">
+            <label htmlFor="subcategoria" className="ds-label">
+              Subcategoría <span className="ds-label-hint">(opcional)</span>
+            </label>
+            <input
+              id="subcategoria"
+              type="text"
+              value={form.subcategoria}
+              onChange={e => set('subcategoria', e.target.value)}
+              placeholder="Ej: Laboratorio, Gasolina"
+              className="ds-input"
+            />
+            <p className="ds-field-hint">Clasifica más fino dentro de la categoría.</p>
           </div>
 
           {/* Concepto */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Concepto <span style={{ fontWeight: 400, color: '#9ca3af' }}>(opcional)</span></label>
-            <input type="text" value={form.concepto} onChange={e => set('concepto', e.target.value)}
-              style={inputStyle} placeholder="¿Qué fue? · Ej: Pago nómina enero, Compra medicamentos" />
-            <p style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.25rem' }}>Descripción breve del movimiento. Aparece como título en la lista.</p>
+          <div className="ds-field">
+            <label htmlFor="concepto" className="ds-label">
+              Concepto <span className="ds-label-hint">(opcional)</span>
+            </label>
+            <input
+              id="concepto"
+              type="text"
+              value={form.concepto}
+              onChange={e => set('concepto', e.target.value)}
+              placeholder="Ej: Pago nómina enero"
+              className="ds-input"
+            />
+            <p className="ds-field-hint">Descripción breve que aparece como título en la lista.</p>
           </div>
 
           {/* Cuenta */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Cuenta</label>
-            <select value={form.cuenta_id} onChange={e => set('cuenta_id', e.target.value)} style={inputStyle} required>
+          <div className="ds-field">
+            <label htmlFor="cuenta" className="ds-label">Cuenta</label>
+            <select id="cuenta" value={form.cuenta_id} onChange={e => set('cuenta_id', e.target.value)} className="ds-input" required>
               <option value="">Seleccionar cuenta...</option>
-              {cuentas.map(c => <option key={c.id} value={c.id}>{c.banco}{c.producto !== c.banco ? ` · ${c.producto}` : ''}</option>)}
+              {cuentas.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.banco}{c.producto !== c.banco ? ` · ${c.producto}` : ''}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Nota */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Nota <span style={{ fontWeight: 400, color: '#9ca3af' }}>(opcional)</span></label>
-            <input type="text" value={form.centro} onChange={e => set('centro', e.target.value)}
-              style={inputStyle} placeholder="Cualquier aclaración adicional" />
-            <p style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '0.25rem' }}>Información extra que no encaja en los campos anteriores.</p>
+          <div className="ds-field">
+            <label htmlFor="nota" className="ds-label">
+              Nota <span className="ds-label-hint">(opcional)</span>
+            </label>
+            <input
+              id="nota"
+              type="text"
+              value={form.centro}
+              onChange={e => set('centro', e.target.value)}
+              placeholder="Cualquier aclaración adicional"
+              className="ds-input"
+            />
           </div>
 
           {/* Recurrente */}
-          <div style={{ ...fieldStyle, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <input type="checkbox" id="recurrente" checked={form.recurrente}
+          <div className="ds-field" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <input
+              type="checkbox"
+              id="recurrente"
+              checked={form.recurrente}
               onChange={e => set('recurrente', e.target.checked)}
-              style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-            <label htmlFor="recurrente" style={{ fontSize: '0.9rem', cursor: 'pointer' }}>Movimiento recurrente</label>
+              style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+            />
+            <label htmlFor="recurrente" style={{ fontSize: 'var(--text-sm)', cursor: 'pointer', color: 'var(--color-text-primary)' }}>
+              Movimiento recurrente
+            </label>
           </div>
 
           {/* Botones */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-            <button type="button" onClick={onClose} style={{
-              flex: 1, padding: '0.75rem', borderRadius: '8px',
-              border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontWeight: 500,
-            }}>Cancelar</button>
-            <button type="submit" disabled={loading} style={{
-              flex: 2, padding: '0.75rem', borderRadius: '8px',
-              border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer', fontWeight: 600,
-              opacity: loading ? 0.7 : 1,
-            }}>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
+            <button type="button" onClick={onClose} className="ds-btn ds-btn-ghost" style={{ flex: 1 }}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={loading} className="ds-btn ds-btn-primary" style={{ flex: 2 }}>
               {loading ? 'Guardando...' : item ? 'Guardar cambios' : 'Registrar'}
             </button>
           </div>

@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { usePerfil } from '../hooks/usePerfil'
 import SideMenu from './SideMenu'
+import { IconMoney, IconBank, IconList, IconChart, IconMenu } from './icons/NavIcons'
 
 const tabs = [
-  { to: '/movimientos', label: 'Movimientos', icon: '💸' },
-  { to: '/cuentas', label: 'Cuentas', icon: '🏦' },
-  { to: '/deudas', label: 'Deudas', icon: '📋' },
-  { to: '/resumen', label: 'Resumen', icon: '📊' },
+  { to: '/movimientos', label: 'Movimientos', Icon: IconMoney },
+  { to: '/cuentas',     label: 'Cuentas',     Icon: IconBank  },
+  { to: '/deudas',      label: 'Deudas',      Icon: IconList  },
+  { to: '/resumen',     label: 'Resumen',     Icon: IconChart },
 ]
 
 export default function Layout({ children }) {
@@ -15,49 +16,87 @@ export default function Layout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f5f5f5' }}>
-      {/* Top bar with hamburger */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, height: '48px',
-        background: '#2563eb', display: 'flex', alignItems: 'center',
-        justifyContent: 'flex-end', padding: '0 1rem', zIndex: 100,
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--color-bg)' }}>
+      {/* Top bar */}
+      <header role="banner" style={{
+        position: 'fixed', top: 0, left: 0, right: 0,
+        height: 'var(--topbar-h)',
+        background: 'var(--color-primary)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 var(--space-5)', zIndex: 100,
+        boxShadow: '0 1px 4px rgb(0 0 0 / 0.15)',
       }}>
-        <button onClick={() => setMenuOpen(true)} style={{
-          background: 'none', border: 'none', color: '#fff',
-          fontSize: '1.4rem', cursor: 'pointer', padding: '0.25rem 0.5rem',
-          lineHeight: 1,
-        }}>
-          ☰
+        <span style={{ color: 'var(--color-text-inverse)', fontWeight: 700, fontSize: 'var(--text-base)', letterSpacing: '-0.01em' }}>
+          Finanzas
+        </span>
+        <button
+          onClick={() => setMenuOpen(true)}
+          aria-label="Abrir menú"
+          aria-expanded={menuOpen}
+          aria-controls="side-menu"
+          style={{
+            background: 'none', border: 'none',
+            color: 'var(--color-text-inverse)',
+            padding: 'var(--space-2)',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <IconMenu size={22} />
         </button>
-      </div>
+      </header>
 
-      <main style={{ flex: 1, overflowY: 'auto', paddingTop: '48px', paddingBottom: '64px' }}>
+      <main style={{
+        flex: 1,
+        paddingTop: 'var(--topbar-h)',
+        paddingBottom: 'var(--bottomnav-h)',
+      }}>
         {children}
       </main>
 
-      <nav style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        height: '64px', background: '#fff',
-        borderTop: '1px solid #e5e7eb',
-        display: 'flex', alignItems: 'stretch',
-        zIndex: 100,
-      }}>
-        {tabs.map(tab => (
-          <NavLink key={tab.to} to={tab.to} style={({ isActive }) => ({
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: '2px',
-            textDecoration: 'none', fontSize: '0.65rem', fontWeight: 500,
-            color: isActive ? '#2563eb' : '#6b7280',
-            borderTop: isActive ? '2px solid #2563eb' : '2px solid transparent',
-            transition: 'color 0.15s',
-          })}>
-            <span style={{ fontSize: '1.25rem' }}>{tab.icon}</span>
-            {tab.label}
+      {/* Bottom nav */}
+      <nav
+        role="navigation"
+        aria-label="Navegación principal"
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          height: 'var(--bottomnav-h)',
+          background: 'var(--color-surface)',
+          borderTop: '1px solid var(--color-border)',
+          display: 'flex', alignItems: 'stretch',
+          zIndex: 100,
+        }}
+      >
+        {tabs.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            aria-label={label}
+            style={({ isActive }) => ({
+              flex: 1,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: '3px',
+              textDecoration: 'none',
+              fontSize: 'var(--text-xs)', fontWeight: 500,
+              color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              borderTop: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+              transition: 'color var(--transition)',
+            })}
+          >
+            <Icon size={20} />
+            <span>{label}</span>
           </NavLink>
         ))}
       </nav>
 
-      {menuOpen && <SideMenu perfil={perfil} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && (
+        <SideMenu
+          id="side-menu"
+          perfil={perfil}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
     </div>
   )
 }

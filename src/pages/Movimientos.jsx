@@ -46,74 +46,56 @@ export default function Movimientos() {
   }, {})
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
+    <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ background: '#2563eb', color: '#fff', padding: '1rem 1rem 1.25rem', position: 'sticky', top: 0, zIndex: 10 }}>
+      <div className="ds-page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Movimientos</h1>
-          <span style={{ fontSize: '0.8rem', opacity: 0.85 }}>{perfil?.nombre}</span>
+          <h1>Movimientos</h1>
+          <span style={{ fontSize: 'var(--text-sm)', opacity: 0.85, fontWeight: 500 }}>
+            {perfil?.nombre}
+          </span>
         </div>
       </div>
 
-      {/* Lista */}
-      <div style={{ padding: '0.75rem' }}>
-        {loading && <p style={{ textAlign: 'center', color: '#6b7280', padding: '2rem' }}>Cargando...</p>}
+      <div style={{ padding: 'var(--space-4)' }}>
+        {loading && (
+          <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-10)' }}>
+            Cargando...
+          </p>
+        )}
+
         {!loading && movimientos.length === 0 && (
-          <div style={{ textAlign: 'center', color: '#6b7280', padding: '3rem 1rem' }}>
-            <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💸</p>
-            <p>No hay movimientos registrados.</p>
-            <p style={{ fontSize: '0.875rem' }}>Toca + para agregar el primero.</p>
+          <div className="ds-empty">
+            <div className="ds-empty-icon">💸</div>
+            <p style={{ fontWeight: 500 }}>No hay movimientos registrados.</p>
+            <p>Toca + para agregar el primero.</p>
           </div>
         )}
+
         {Object.entries(grouped).map(([fecha, items]) => (
-          <div key={fecha} style={{ marginBottom: '1rem' }}>
-            <p style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600, marginBottom: '0.4rem', paddingLeft: '0.25rem' }}>
-              {new Date(fecha + 'T12:00:00').toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long' })}
+          <div key={fecha} style={{ marginBottom: 'var(--space-5)' }}>
+            <p className="ds-section-label">
+              {new Date(fecha + 'T12:00:00').toLocaleDateString('es-DO', {
+                weekday: 'long', day: 'numeric', month: 'long',
+              })}
             </p>
             {items.map(m => (
-              <div key={m.id} onClick={() => handleEdit(m)} style={{
-                background: '#fff', borderRadius: '10px', padding: '0.75rem 1rem',
-                marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between',
-                alignItems: 'center', cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-              }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.15rem' }}>
-                    {m.concepto || m.categorias?.nombre || '—'}
-                  </p>
-                  <p style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                    {m.categorias?.nombre}{m.subcategoria ? ` · ${m.subcategoria}` : ''}
-                    {m.recurrente ? ' · 🔁' : ''}
-                  </p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontWeight: 600, color: m.tipo === 'ingreso' ? '#16a34a' : '#dc2626', fontSize: '0.95rem' }}>
-                    {m.tipo === 'ingreso' ? '+' : '-'}{Number(m.monto).toLocaleString('es-DO', { minimumFractionDigits: 2 })} {m.moneda}
-                  </p>
-                  {perfil?.rol === 'administradora' && (
-                    <button onClick={e => { e.stopPropagation(); handleDelete(m.id) }}
-                      style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.75rem', padding: '0.25rem 0' }}>
-                      Eliminar
-                    </button>
-                  )}
-                </div>
-              </div>
+              <MovimientoCard
+                key={m.id}
+                m={m}
+                isAdmin={perfil?.rol === 'administradora'}
+                onEdit={() => handleEdit(m)}
+                onDelete={() => handleDelete(m.id)}
+              />
             ))}
           </div>
         ))}
       </div>
 
-      {/* FAB */}
-      <button onClick={handleNew} style={{
-        position: 'fixed', bottom: '76px', right: '1.25rem',
-        width: '52px', height: '52px', borderRadius: '50%',
-        background: '#2563eb', color: '#fff', border: 'none',
-        fontSize: '1.5rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.4)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 50,
-      }}>+</button>
+      <button onClick={handleNew} className="ds-fab" aria-label="Nuevo movimiento">
+        +
+      </button>
 
-      {/* Form Modal */}
       {showForm && (
         <MovimientoForm
           item={editItem}
@@ -122,6 +104,64 @@ export default function Movimientos() {
           onClose={handleClose}
         />
       )}
+    </div>
+  )
+}
+
+function MovimientoCard({ m, isAdmin, onEdit, onDelete }) {
+  const esIngreso = m.tipo === 'ingreso'
+
+  return (
+    <div
+      className="ds-card"
+      onClick={onEdit}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && onEdit()}
+      aria-label={`${m.concepto || m.categorias?.nombre || 'Movimiento'}, ${esIngreso ? '+' : '-'}${Number(m.monto).toLocaleString('es-DO', { minimumFractionDigits: 2 })} ${m.moneda}`}
+      style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: 'var(--space-4)', marginBottom: 'var(--space-2)',
+        cursor: 'pointer',
+        transition: 'box-shadow var(--transition)',
+        borderLeft: `3px solid ${esIngreso ? 'var(--color-success)' : 'var(--color-danger)'}`,
+      }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', marginBottom: '2px', color: 'var(--color-text-primary)' }}>
+          {m.concepto || m.categorias?.nombre || '—'}
+        </p>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+          {m.categorias?.nombre}
+          {m.subcategoria ? ` · ${m.subcategoria}` : ''}
+          {m.recurrente ? ' · 🔁' : ''}
+        </p>
+      </div>
+      <div style={{ textAlign: 'right', marginLeft: 'var(--space-3)', flexShrink: 0 }}>
+        <p style={{
+          fontWeight: 700, fontSize: 'var(--text-base)',
+          color: esIngreso ? 'var(--color-success)' : 'var(--color-danger)',
+        }}>
+          {esIngreso ? '+' : '-'}{Number(m.monto).toLocaleString('es-DO', { minimumFractionDigits: 2 })} {m.moneda}
+        </p>
+        {isAdmin && (
+          <button
+            onClick={e => { e.stopPropagation(); onDelete() }}
+            className="ds-btn ds-btn-sm"
+            aria-label="Eliminar movimiento"
+            style={{
+              background: 'none', border: 'none',
+              color: 'var(--color-danger)', fontSize: 'var(--text-xs)',
+              padding: '2px 0', marginTop: '2px',
+              cursor: 'pointer',
+            }}
+          >
+            Eliminar
+          </button>
+        )}
+      </div>
     </div>
   )
 }
