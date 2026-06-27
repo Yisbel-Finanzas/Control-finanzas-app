@@ -53,6 +53,8 @@ export default function Login() {
     }}>
       {/* Brand section */}
       <div style={{
+        position: 'relative',
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -60,6 +62,17 @@ export default function Login() {
         padding: 'clamp(52px, 13vh, 88px) var(--space-6) clamp(36px, 9vh, 60px)',
         flex: '0 0 auto',
       }}>
+        {/* Portrait watermark */}
+        <div aria-hidden="true" style={{
+          position: 'absolute', inset: 0, zIndex: 0,
+          backgroundImage: `url(${import.meta.env.BASE_URL}img/yisbel-portrait.png)`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 18%',
+          opacity: 0.13,
+          mixBlendMode: 'multiply',
+          pointerEvents: 'none',
+        }} />
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{
           width: 72, height: 72,
           borderRadius: '22px',
@@ -92,6 +105,7 @@ export default function Login() {
         }}>
           Control personal
         </p>
+        </div>{/* /zIndex wrapper */}
       </div>
 
       {/* Form section */}

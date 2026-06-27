@@ -71,13 +71,24 @@ export default function Dashboard() {
   return (
     <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto' }}>
       {/* Header */}
-      <div className="ds-page-header">
-        <h1>Inicio</h1>
-        {perfil?.nombre && (
-          <p style={{ fontSize: 'var(--text-sm)', opacity: 0.82, marginTop: 'var(--space-1)', textTransform: 'capitalize' }}>
-            Hola, {perfil.nombre}
-          </p>
-        )}
+      <div className="ds-page-header" style={{ position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden="true" style={{
+          position: 'absolute', inset: 0, zIndex: 0,
+          backgroundImage: `url(${import.meta.env.BASE_URL}img/yisbel-portrait.png)`,
+          backgroundSize: '220%',
+          backgroundPosition: 'center 22%',
+          opacity: 0.11,
+          mixBlendMode: 'multiply',
+          pointerEvents: 'none',
+        }} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <h1>Inicio</h1>
+          {perfil?.nombre && (
+            <p style={{ fontSize: 'var(--text-sm)', opacity: 0.82, marginTop: 'var(--space-1)', textTransform: 'capitalize' }}>
+              Hola, {perfil.nombre}
+            </p>
+          )}
+        </div>
       </div>
 
       <div style={{ padding: 'var(--space-4) var(--space-4) var(--space-6)' }}>
