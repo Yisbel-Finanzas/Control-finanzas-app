@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { usePerfil } from '../hooks/usePerfil'
 import { useDarkMode } from '../hooks/useDarkMode'
 import SideMenu from './SideMenu'
+import IAFloatingButton from './IAFloatingButton'
 import { IconHome, IconMoney, IconBank, IconList, IconChart, IconMenu } from './icons/NavIcons'
 
 const tabs = [
@@ -131,6 +132,8 @@ export default function Layout({ children }) {
           </NavLink>
         ))}
       </nav>
+
+      <IAFloatingButton />
 
       {menuOpen && (
         <SideMenu
