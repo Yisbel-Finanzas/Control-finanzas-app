@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { usePerfil } from '../hooks/usePerfil'
 import { IconChart, IconCalendar } from '../components/icons/NavIcons'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import AnalisisIA from '../components/AnalisisIA'
 
 function fmt(n, moneda) {
   return Number(n).toLocaleString('es-DO', { minimumFractionDigits: 2 }) + ' ' + moneda
@@ -51,6 +53,8 @@ async function fetchMes(year, month) {
 }
 
 export default function Resumen() {
+  const perfil = usePerfil()
+  const isAdmin = perfil?.rol === 'administradora'
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -306,6 +310,14 @@ export default function Resumen() {
                       </div>
                     ))}
                   </div>
+                )}
+
+                {/* Análisis con IA — solo admin */}
+                {isAdmin && (
+                  <AnalisisIA
+                    movimientos={movs}
+                    periodo={mesLabel(year, month)}
+                  />
                 )}
               </>
             )}
