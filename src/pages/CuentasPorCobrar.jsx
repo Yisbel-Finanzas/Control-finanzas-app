@@ -83,6 +83,7 @@ export default function CuentasPorCobrar() {
       saldo_pendiente: formCXC.saldo_pendiente !== '' ? parseFloat(formCXC.saldo_pendiente) : null,
       fecha_ultima_actualizacion: new Date().toISOString().split('T')[0],
       activo: true,
+      created_by: perfil?.id,
     }
     let error
     if (editCXC) {
@@ -102,6 +103,10 @@ export default function CuentasPorCobrar() {
       setAbonoError('Selecciona una categoría para el ingreso.')
       return
     }
+    if (parseFloat(formAbono.monto) > (cxcParaAbonar.saldo_pendiente || 0)) {
+      setAbonoError('El monto no puede ser mayor al saldo pendiente.')
+      return
+    }
     setAbonoError(null)
     setSaving(true)
     const monto = parseFloat(formAbono.monto)
@@ -116,6 +121,7 @@ export default function CuentasPorCobrar() {
         categoria_id: formAbono.categoria_id || null,
         created_by: perfil?.id,
       }),
+      // Se marca inactiva automáticamente si el cobro salda el saldo por completo
       supabase.from('cuentas_por_cobrar').update({
         saldo_pendiente: nuevoSaldo,
         fecha_ultima_actualizacion: formAbono.fecha,
