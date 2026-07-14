@@ -174,7 +174,7 @@ export default function CuentasPorCobrar() {
             <span className="ds-section-label" style={{ color: 'var(--color-success)', margin: 0 }}>Total por cobrar</span>
             <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
               {Object.entries(totalPorMoneda).map(([moneda, total]) => (
-                <span key={moneda} style={{ fontWeight: 700, color: 'var(--color-success)', fontSize: 'var(--text-base)' }}>
+                <span key={moneda} style={{ fontWeight: 700, color: 'var(--color-success)', fontSize: 'var(--text-base)', fontVariantNumeric: 'tabular-nums' }}>
                   {Number(total).toLocaleString('es-DO', { minimumFractionDigits: 2 })} {moneda}
                 </span>
               ))}
@@ -369,7 +369,7 @@ function CXCCard({ cxc: c, isAdmin, onEdit, onAbono, onMarcarCobrada }) {
             {saldo.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {c.moneda}
           </p>
           {original > 0 && (
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}>
               de {original.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {c.moneda}
             </p>
           )}
