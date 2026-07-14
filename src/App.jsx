@@ -10,6 +10,7 @@ import Cuentas from './pages/Cuentas'
 import Deudas from './pages/Deudas'
 import Resumen from './pages/Resumen'
 import Metas from './pages/Metas'
+import CuentasPorCobrar from './pages/CuentasPorCobrar'
 import ConfigCategorias from './pages/config/Categorias'
 import ConfigPresupuesto from './pages/config/Presupuesto'
 
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/deudas" element={<Deudas />} />
         <Route path="/resumen" element={<Resumen />} />
         <Route path="/metas" element={<Metas />} />
+        <Route path="/cuentas-por-cobrar" element={<CuentasPorCobrar />} />
         <Route path="/config/categorias" element={<ConfigCategorias />} />
         <Route path="/config/presupuesto" element={<ConfigPresupuesto />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
