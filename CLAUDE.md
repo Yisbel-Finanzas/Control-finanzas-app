@@ -10,10 +10,10 @@ npm run build     # Production build → dist/
 npm run preview   # Preview production build locally
 ```
 
-Requires `.env.local` with:
+Requires `.env.local` with (see `.env.example`):
 ```
-VITE_SUPABASE_URL=https://ivfxnpafglgixyaknmxy.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_4SCgEd3SQKhkNO5m44pFew_K5HkYfal
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ## Deploy
