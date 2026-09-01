@@ -249,7 +249,7 @@ export default function Dashboard() {
                 {metas.map(m => {
                   const pct = Math.min(100, Math.round((Number(m.monto_actual) / Number(m.monto_objetivo)) * 100))
                   return (
-                    <div key={m.id} style={{ marginBottom: 'var(--space-3)' }} onClick={() => navigate('/metas')} role="button" tabIndex={0} style={{ cursor: 'pointer', marginBottom: 'var(--space-3)' }}>
+                    <div key={m.id} style={{ marginBottom: 'var(--space-3)', cursor: 'pointer' }} onClick={() => navigate('/metas')} role="button" tabIndex={0}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
                         <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>{m.nombre}</span>
                         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
