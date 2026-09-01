@@ -20,6 +20,10 @@ export default function Deudas() {
   const [formAbono, setFormAbono] = useState(emptyAbono)
   const [saving, setSaving] = useState(false)
   const [abonoError, setAbonoError] = useState(null)
+  const [showDetalle, setShowDetalle] = useState(false)
+  const [deudaDetalle, setDeudaDetalle] = useState(null)
+  const [abonosDetalle, setAbonosDetalle] = useState([])
+  const [loadingAbonos, setLoadingAbonos] = useState(false)
 
   const isAdmin = perfil?.rol === 'administradora'
 
@@ -62,6 +66,19 @@ export default function Deudas() {
     setFormAbono({ ...emptyAbono, moneda: d.moneda, fecha: new Date().toISOString().split('T')[0] })
     setAbonoError(null)
     setShowAbonoForm(true)
+  }
+
+  async function openDetalle(d) {
+    setDeudaDetalle(d)
+    setShowDetalle(true)
+    setLoadingAbonos(true)
+    const { data } = await supabase
+      .from('abonos_deuda')
+      .select('id, monto, moneda, fecha, cuentas(banco, producto)')
+      .eq('deuda_id', d.id)
+      .order('fecha', { ascending: false })
+    setAbonosDetalle(data || [])
+    setLoadingAbonos(false)
   }
 
   const setD = (k, v) => setFormDeuda(f => ({ ...f, [k]: v }))
@@ -198,12 +215,51 @@ export default function Deudas() {
             onEdit={openEditDeuda}
             onAbono={openAbono}
             onDesactivar={handleDesactivar}
+            onVerDetalle={openDetalle}
           />
         ))}
       </div>
 
       {isAdmin && (
         <button onClick={openNuevaDeuda} className="ds-fab" aria-label="Nueva deuda"><IconPlus size={24} /></button>
+      )}
+
+      {/* Modal detalle de abonos */}
+      {showDetalle && (
+        <SheetModal onClose={() => setShowDetalle(false)} title="Historial de abonos" subtitle={deudaDetalle?.nombre}>
+          {loadingAbonos && (
+            <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>
+              Cargando...
+            </p>
+          )}
+
+          {!loadingAbonos && abonosDetalle.length === 0 && (
+            <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>
+              Todavía no se han registrado abonos.
+            </p>
+          )}
+
+          {!loadingAbonos && abonosDetalle.map(a => (
+            <div key={a.id} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: 'var(--space-3) 0', borderBottom: '1px solid var(--color-border)',
+            }}>
+              <div>
+                <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>
+                  {new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+                {a.cuentas && (
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                    {a.cuentas.banco}{a.cuentas.producto !== a.cuentas.banco ? ` · ${a.cuentas.producto}` : ''}
+                  </p>
+                )}
+              </div>
+              <p style={{ fontWeight: 700, color: 'var(--color-success)', fontVariantNumeric: 'tabular-nums' }}>
+                {Number(a.monto).toLocaleString('es-DO', { minimumFractionDigits: 2 })} {a.moneda}
+              </p>
+            </div>
+          ))}
+        </SheetModal>
       )}
 
       {/* Modal deuda */}
@@ -360,7 +416,7 @@ export default function Deudas() {
   )
 }
 
-function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar }) {
+function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDetalle }) {
   const saldo  = Number(d.saldo_actual || 0)
   const limite = Number(d.limite_o_monto_original || 0)
   const pct    = limite > 0 ? Math.min((saldo / limite) * 100, 100) : null
@@ -368,46 +424,59 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar }) {
 
   return (
     <div className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
-        <div>
-          <p style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--color-text-primary)' }}>{d.nombre}</p>
-          {d.tasa_interes && (
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              {d.tasa_interes}% interés anual
+      <div
+        onClick={() => onVerDetalle(d)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onVerDetalle(d) } }}
+        aria-label={`Ver historial de abonos de ${d.nombre}`}
+        style={{ cursor: 'pointer' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
+          <div>
+            <p style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--color-text-primary)' }}>{d.nombre}</p>
+            {d.tasa_interes && (
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                {d.tasa_interes}% interés anual
+              </p>
+            )}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontWeight: 700, color: 'var(--color-danger)', fontSize: 'var(--text-lg)' }}>
+              {saldo.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {d.moneda}
             </p>
-          )}
+            {limite > 0 && (
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                de {limite.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {d.moneda}
+              </p>
+            )}
+          </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontWeight: 700, color: 'var(--color-danger)', fontSize: 'var(--text-lg)' }}>
-            {saldo.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {d.moneda}
+
+        {pct !== null && (
+          <div
+            className="ds-progress-track"
+            style={{ marginBottom: 'var(--space-3)' }}
+            role="progressbar"
+            aria-valuenow={Math.round(pct)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${Math.round(pct)}% del límite utilizado`}
+          >
+            <div className="ds-progress-fill" style={{ width: `${pct}%`, background: barColor }} />
+          </div>
+        )}
+
+        {d.fecha_ultima_actualizacion && (
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-1)' }}>
+            Actualizado: {new Date(d.fecha_ultima_actualizacion + 'T12:00:00').toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })}
           </p>
-          {limite > 0 && (
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-              de {limite.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {d.moneda}
-            </p>
-          )}
-        </div>
-      </div>
+        )}
 
-      {pct !== null && (
-        <div
-          className="ds-progress-track"
-          style={{ marginBottom: 'var(--space-3)' }}
-          role="progressbar"
-          aria-valuenow={Math.round(pct)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`${Math.round(pct)}% del límite utilizado`}
-        >
-          <div className="ds-progress-fill" style={{ width: `${pct}%`, background: barColor }} />
-        </div>
-      )}
-
-      {d.fecha_ultima_actualizacion && (
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)' }}>
-          Actualizado: {new Date(d.fecha_ultima_actualizacion + 'T12:00:00').toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })}
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-primary)', fontWeight: 600, marginBottom: 'var(--space-3)' }}>
+          Ver historial de abonos →
         </p>
-      )}
+      </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
         <button onClick={() => onAbono(d)} className="ds-btn ds-btn-sm" style={{
