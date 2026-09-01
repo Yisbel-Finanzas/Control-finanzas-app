@@ -424,14 +424,7 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDeta
 
   return (
     <div className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
-      <div
-        onClick={() => onVerDetalle(d)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onVerDetalle(d) } }}
-        aria-label={`Ver historial de abonos de ${d.nombre}`}
-        style={{ cursor: 'pointer' }}
-      >
+      <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
           <div>
             <p style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--color-text-primary)' }}>{d.nombre}</p>
@@ -473,10 +466,15 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDeta
           </p>
         )}
 
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-primary)', fontWeight: 600, marginBottom: 'var(--space-3)' }}>
-          Ver historial de abonos →
-        </p>
       </div>
+
+      <button
+        onClick={() => onVerDetalle(d)}
+        className="ds-btn ds-btn-ghost ds-btn-sm"
+        style={{ width: '100%', marginBottom: 'var(--space-2)', color: 'var(--color-primary)', fontWeight: 600 }}
+      >
+        Ver historial de abonos
+      </button>
 
       <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
         <button onClick={() => onAbono(d)} className="ds-btn ds-btn-sm" style={{
