@@ -7,6 +7,10 @@ export default function Categorias() {
   const [tipo, setTipo] = useState('gasto')
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null) // { msg, type: 'info'|'success'|'danger' }
+  const [reglas, setReglas] = useState([])
+  const [reglaPatron, setReglaPatron] = useState('')
+  const [reglaCategoriaId, setReglaCategoriaId] = useState('')
+  const [savingRegla, setSavingRegla] = useState(false)
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type })
@@ -18,7 +22,33 @@ export default function Categorias() {
     setCategorias(data || [])
   }
 
-  useEffect(() => { fetchCats() }, [])
+  async function fetchReglas() {
+    const { data } = await supabase.from('reglas_categorizacion').select('*, categorias(nombre)').order('patron_texto')
+    setReglas(data || [])
+  }
+
+  useEffect(() => { fetchCats(); fetchReglas() }, [])
+
+  async function handleAddRegla(e) {
+    e.preventDefault()
+    if (!reglaPatron.trim() || !reglaCategoriaId) return
+    setSavingRegla(true)
+    const { error } = await supabase.from('reglas_categorizacion').insert({
+      patron_texto: reglaPatron.trim().toLowerCase(), categoria_id: reglaCategoriaId,
+    })
+    setSavingRegla(false)
+    if (error) { showToast('Ya existe una regla con ese texto', 'danger'); return }
+    setReglaPatron('')
+    setReglaCategoriaId('')
+    await fetchReglas()
+    showToast('Regla agregada', 'success')
+  }
+
+  async function handleDeleteRegla(id) {
+    await supabase.from('reglas_categorizacion').delete().eq('id', id)
+    await fetchReglas()
+    showToast('Regla eliminada', 'success')
+  }
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -145,6 +175,63 @@ export default function Categorias() {
             ))}
           </div>
         ))}
+
+        {/* Reglas de categorización automática */}
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <p className="ds-section-label">Categorización automática</p>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
+            Si el concepto de un movimiento nuevo contiene este texto, se sugiere la categoría (nunca se aplica sin que confirmes).
+          </p>
+
+          <form onSubmit={handleAddRegla} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
+            <input
+              value={reglaPatron}
+              onChange={e => setReglaPatron(e.target.value)}
+              placeholder="Texto a buscar (ej: netflix)"
+              aria-label="Texto de la regla"
+              className="ds-input"
+              style={{ flex: 1, minWidth: '140px' }}
+            />
+            <select
+              value={reglaCategoriaId}
+              onChange={e => setReglaCategoriaId(e.target.value)}
+              aria-label="Categoría a sugerir"
+              className="ds-input"
+              style={{ width: 'auto' }}
+            >
+              <option value="">Categoría…</option>
+              {categorias.filter(c => c.activo).map(c => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </select>
+            <button type="submit" disabled={savingRegla} className="ds-btn ds-btn-primary">
+              {savingRegla ? '...' : '+ Agregar'}
+            </button>
+          </form>
+
+          {reglas.length === 0 && (
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', padding: 'var(--space-2) 0' }}>
+              Sin reglas aún.
+            </p>
+          )}
+          {reglas.map(r => (
+            <div key={r.id} className="ds-card" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-2)',
+            }}>
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>
+                "{r.patron_texto}" → <strong>{r.categorias?.nombre}</strong>
+              </span>
+              <button
+                onClick={() => handleDeleteRegla(r.id)}
+                className="ds-btn ds-btn-danger ds-btn-sm"
+                aria-label={`Eliminar regla ${r.patron_texto}`}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Toast notification — fixed, siempre visible */}
