@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
@@ -16,12 +17,25 @@ const FILTROS_INIT = {
 
 export default function Movimientos() {
   const perfil = usePerfil()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [movimientos, setMovimientos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState(null)
+  const [prefill, setPrefill] = useState(null)
   const [filtrosOpen, setFiltrosOpen] = useState(false)
   const [filtros, setFiltros] = useState(FILTROS_INIT)
+
+  // Prellenar el formulario si llegamos desde el recordatorio de pagos recurrentes (Dashboard)
+  useEffect(() => {
+    if (location.state?.prefill) {
+      setPrefill(location.state.prefill)
+      setEditItem(null)
+      setShowForm(true)
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.state])
 
   async function fetchMovimientos() {
     setLoading(true)
@@ -111,9 +125,9 @@ export default function Movimientos() {
     XLSX.writeFile(wb, `movimientos${etiqueta}.xlsx`)
   }
 
-  function handleNew() { setEditItem(null); setShowForm(true) }
-  function handleEdit(m) { setEditItem(m); setShowForm(true) }
-  function handleClose() { setShowForm(false); setEditItem(null) }
+  function handleNew() { setEditItem(null); setPrefill(null); setShowForm(true) }
+  function handleEdit(m) { setEditItem(m); setPrefill(null); setShowForm(true) }
+  function handleClose() { setShowForm(false); setEditItem(null); setPrefill(null) }
   async function handleSave() { await fetchMovimientos(); handleClose() }
 
   async function handleDelete(id) {
@@ -330,6 +344,7 @@ export default function Movimientos() {
       {showForm && (
         <MovimientoForm
           item={editItem}
+          initial={prefill}
           perfil={perfil}
           onSave={handleSave}
           onClose={handleClose}
