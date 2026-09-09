@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-export default function MovimientoForm({ item, perfil, onSave, onClose }) {
+// `item`: movimiento existente a editar (el submit hace UPDATE por item.id).
+// `initial`: valores para prellenar un movimiento NUEVO (el submit hace INSERT) — nunca usar
+// aquí un registro real de otro mes como `item`, o el submit sobrescribiría ese registro.
+export default function MovimientoForm({ item, initial, perfil, onSave, onClose }) {
   const [categorias, setCategorias] = useState([])
   const [cuentas, setCuentas] = useState([])
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState(null)
   const [form, setForm] = useState({
-    fecha:       item?.fecha       || new Date().toISOString().split('T')[0],
-    tipo:        item?.tipo        || 'gasto',
-    categoria_id: item?.categoria_id || '',
-    subcategoria: item?.subcategoria || '',
-    concepto:    item?.concepto    || '',
-    monto:       item?.monto       || '',
-    moneda:      item?.moneda      || 'DOP',
-    cuenta_id:   item?.cuenta_id   || '',
-    recurrente:  item?.recurrente  || false,
-    centro:      item?.centro      || '',
+    fecha:       item?.fecha       || initial?.fecha       || new Date().toISOString().split('T')[0],
+    tipo:        item?.tipo        || initial?.tipo        || 'gasto',
+    categoria_id: item?.categoria_id || initial?.categoria_id || '',
+    subcategoria: item?.subcategoria || initial?.subcategoria || '',
+    concepto:    item?.concepto    || initial?.concepto    || '',
+    monto:       item?.monto       || initial?.monto       || '',
+    moneda:      item?.moneda      || initial?.moneda      || 'DOP',
+    cuenta_id:   item?.cuenta_id   || initial?.cuenta_id   || '',
+    recurrente:  item?.recurrente  ?? initial?.recurrente  ?? false,
+    centro:      item?.centro      || initial?.centro      || '',
   })
 
   useEffect(() => {

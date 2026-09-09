@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import { IconGoal } from '../components/icons/NavIcons'
+import { IconGoal, IconRepeat } from '../components/icons/NavIcons'
 
 function fmt(n, moneda) {
   return Number(n).toLocaleString('es-DO', { minimumFractionDigits: 2 }) + ' ' + moneda
@@ -231,6 +231,9 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Pagos recurrentes pendientes */}
+            <RecurrentesWidget navigate={navigate} year={year} month={month} />
+
             {/* Presupuesto del mes */}
             <BudgetWidget navigate={navigate} />
 
@@ -318,6 +321,98 @@ export default function Dashboard() {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+// Clave de identidad de un gasto recurrente: mismo texto (concepto o, en su defecto, subcategoría)
+// dentro de la misma categoría. Sin texto identificable, se descarta (demasiado ambiguo).
+function claveRecurrente(m) {
+  const texto = (m.concepto || m.subcategoria || '').trim().toLowerCase()
+  if (!texto) return null
+  return `${m.categoria_id}|${texto}`
+}
+
+function RecurrentesWidget({ navigate, year, month }) {
+  const [pendientes, setPendientes] = useState(null) // null=loading, []=nada pendiente
+
+  useEffect(() => {
+    const prevYear = month === 1 ? year - 1 : year
+    const prevMonth = month === 1 ? 12 : month - 1
+    const desdePrev = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`
+    const hastaPrev = new Date(prevYear, prevMonth, 0).toISOString().split('T')[0]
+    const desdeCur = `${year}-${String(month).padStart(2, '0')}-01`
+    const hastaCur = new Date(year, month, 0).toISOString().split('T')[0]
+
+    const campos = 'categoria_id, concepto, subcategoria, monto, moneda, tipo, cuenta_id, categorias(nombre)'
+    Promise.all([
+      supabase.from('movimientos').select(campos)
+        .eq('recurrente', true).eq('tipo', 'gasto').is('deleted_at', null)
+        .gte('fecha', desdePrev).lte('fecha', hastaPrev),
+      supabase.from('movimientos').select('categoria_id, concepto, subcategoria')
+        .eq('recurrente', true).eq('tipo', 'gasto').is('deleted_at', null)
+        .gte('fecha', desdeCur).lte('fecha', hastaCur),
+    ]).then(([{ data: prev }, { data: cur }]) => {
+      const clavesEsteMonth = new Set((cur || []).map(claveRecurrente).filter(Boolean))
+      const vistos = new Set()
+      const lista = []
+      for (const m of prev || []) {
+        const clave = claveRecurrente(m)
+        if (!clave || vistos.has(clave) || clavesEsteMonth.has(clave)) continue
+        vistos.add(clave)
+        lista.push(m)
+      }
+      setPendientes(lista)
+    })
+  }, [year, month])
+
+  if (!pendientes || pendientes.length === 0) return null
+
+  function registrarAhora(m) {
+    navigate('/movimientos', {
+      state: {
+        prefill: {
+          tipo: m.tipo,
+          categoria_id: m.categoria_id,
+          subcategoria: m.subcategoria,
+          concepto: m.concepto,
+          monto: m.monto,
+          moneda: m.moneda,
+          cuenta_id: m.cuenta_id,
+          recurrente: true,
+          fecha: new Date().toISOString().split('T')[0],
+        },
+      },
+    })
+  }
+
+  return (
+    <div className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', borderLeft: '3px solid var(--color-warning)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+        <IconRepeat size={16} aria-hidden="true" />
+        <p className="ds-section-label" style={{ margin: 0 }}>Pagos recurrentes pendientes</p>
+      </div>
+      {pendientes.map((m, i) => (
+        <div key={i} style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: 'var(--space-2) 0', borderTop: i === 0 ? 'none' : '1px solid var(--color-border)',
+        }}>
+          <div style={{ minWidth: 0, marginRight: 'var(--space-2)' }}>
+            <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {m.concepto || m.subcategoria}
+            </p>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+              {m.categorias?.nombre} · {fmt(m.monto, m.moneda)}
+            </p>
+          </div>
+          <button onClick={() => registrarAhora(m)} className="ds-btn ds-btn-sm" style={{
+            flexShrink: 0,
+            background: 'var(--color-primary-light)',
+            border: '1px solid var(--color-primary-muted)',
+            color: 'var(--color-primary)', fontWeight: 600,
+          }}>Registrar</button>
+        </div>
+      ))}
     </div>
   )
 }
