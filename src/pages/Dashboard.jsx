@@ -231,6 +231,9 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Dinero disponible real */}
+            <DisponibleRealWidget year={year} month={month} />
+
             {/* Pagos recurrentes pendientes */}
             <RecurrentesWidget navigate={navigate} year={year} month={month} />
 
@@ -413,6 +416,71 @@ function RecurrentesWidget({ navigate, year, month }) {
           }}>Registrar</button>
         </div>
       ))}
+    </div>
+  )
+}
+
+// "Disponible para gastar libremente" = ingresos del mes − gastos ya registrados − lo que
+// aún está reservado (sin gastar) dentro de los límites de presupuesto activos. No resta
+// pagos futuros de deudas/metas que todavía no se han registrado — es una aproximación
+// basada solo en compromisos de presupuesto, no en todo el flujo de caja proyectado.
+function DisponibleRealWidget({ year, month }) {
+  const [porMoneda, setPorMoneda] = useState(null) // null=loading, []=nada que mostrar
+
+  useEffect(() => {
+    supabase.from('configuracion').select('valor').eq('clave', 'presupuesto_activo').maybeSingle()
+      .then(({ data: cfg }) => {
+        if (cfg?.valor !== 'true') { setPorMoneda([]); return }
+        const desde = `${year}-${String(month).padStart(2, '0')}-01`
+        const hasta = new Date(year, month, 0).toISOString().split('T')[0]
+        Promise.all([
+          supabase.from('movimientos').select('tipo, categoria_id, monto, moneda')
+            .is('deleted_at', null).gte('fecha', desde).lte('fecha', hasta),
+          supabase.from('presupuestos').select('categoria_id, monto_limite, moneda'),
+        ]).then(([{ data: movs }, { data: presp }]) => {
+          if (!presp?.length) { setPorMoneda([]); return }
+          const ingresos = {}, gastosPorCategoria = {}
+          ;(movs || []).forEach(m => {
+            if (m.tipo === 'ingreso') {
+              ingresos[m.moneda] = (ingresos[m.moneda] || 0) + Number(m.monto)
+            } else {
+              const k = `${m.categoria_id}:${m.moneda}`
+              gastosPorCategoria[k] = (gastosPorCategoria[k] || 0) + Number(m.monto)
+            }
+          })
+          const reservadoSinGastar = {}
+          presp.forEach(p => {
+            const gastado = gastosPorCategoria[`${p.categoria_id}:${p.moneda}`] || 0
+            const restante = Math.max(0, Number(p.monto_limite) - gastado)
+            reservadoSinGastar[p.moneda] = (reservadoSinGastar[p.moneda] || 0) + restante
+          })
+          const monedas = [...new Set([...Object.keys(ingresos), ...Object.keys(reservadoSinGastar)])]
+          const list = monedas
+            .map(mon => ({ moneda: mon, disponible: (ingresos[mon] || 0) - (reservadoSinGastar[mon] || 0) }))
+            .filter(x => (reservadoSinGastar[x.moneda] || 0) > 0)
+          setPorMoneda(list)
+        })
+      })
+  }, [year, month])
+
+  if (!porMoneda || porMoneda.length === 0) return null
+
+  return (
+    <div className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+      <p className="ds-section-label">Dinero disponible real</p>
+      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
+        Ingresos del mes, menos lo que ya está reservado (sin gastar) en tus límites de presupuesto.
+      </p>
+      <div style={{ display: 'flex', gap: 'var(--space-5)', flexWrap: 'wrap' }}>
+        {porMoneda.map(({ moneda, disponible }) => (
+          <p key={moneda} style={{
+            fontWeight: 700, fontSize: 'var(--text-lg)', fontVariantNumeric: 'tabular-nums',
+            color: disponible < 0 ? 'var(--color-danger)' : 'var(--color-primary)',
+          }}>
+            {disponible < 0 ? '−' : ''}{fmt(Math.abs(disponible), moneda)}
+          </p>
+        ))}
+      </div>
     </div>
   )
 }
