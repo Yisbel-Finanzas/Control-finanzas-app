@@ -16,6 +16,25 @@ function mesesTranscurridos(desde, hasta) {
   return Math.max(1, meses)
 }
 
+// Simulación simple de amortización: aplica interés mensual sobre el saldo y resta el pago,
+// mes a mes, hasta saldar la deuda. Devuelve null si el pago nunca alcanza a cubrir el interés.
+function simularAmortizacion(saldoInicial, pagoMensual, tasaAnualPct) {
+  const tasaMensual = (Number(tasaAnualPct) || 0) / 100 / 12
+  let saldo = Number(saldoInicial)
+  let meses = 0
+  let interesTotal = 0
+  const MAX_MESES = 600 // 50 años, límite de seguridad
+  while (saldo > 0 && meses < MAX_MESES) {
+    const interesMes = saldo * tasaMensual
+    if (pagoMensual <= interesMes) return null // nunca se paga a este ritmo
+    interesTotal += interesMes
+    saldo = saldo + interesMes - pagoMensual
+    meses++
+  }
+  if (saldo > 0) return null
+  return { meses, interesTotal }
+}
+
 export default function Deudas() {
   const perfil = usePerfil()
   const [deudas, setDeudas] = useState([])
@@ -32,6 +51,7 @@ export default function Deudas() {
   const [abonoError, setAbonoError] = useState(null)
   const [showDetalle, setShowDetalle] = useState(false)
   const [deudaDetalle, setDeudaDetalle] = useState(null)
+  const [extraSimulado, setExtraSimulado] = useState('')
   const [abonosDetalle, setAbonosDetalle] = useState([])
   const [loadingAbonos, setLoadingAbonos] = useState(false)
   const [orden, setOrden] = useState('ninguno') // 'ninguno' | 'snowball' | 'avalancha'
@@ -89,7 +109,7 @@ export default function Deudas() {
           const meses = mesesTranscurridos(info.primeraFecha, hoy)
           const promedioMensual = info.total / meses
           resultado[d.id] = promedioMensual > 0
-            ? { mesesRestantes: Math.ceil(Number(d.saldo_actual || 0) / promedioMensual), sinAbonos: false }
+            ? { mesesRestantes: Math.ceil(Number(d.saldo_actual || 0) / promedioMensual), promedioMensual, sinAbonos: false }
             : { sinAbonos: true }
         }
         setProyecciones(resultado)
@@ -119,6 +139,7 @@ export default function Deudas() {
   async function openDetalle(d) {
     setDeudaDetalle(d)
     setShowDetalle(true)
+    setExtraSimulado('')
     setLoadingAbonos(true)
     const { data } = await supabase
       .from('abonos_deuda')
@@ -353,6 +374,13 @@ export default function Deudas() {
       {/* Modal detalle de abonos */}
       {showDetalle && (
         <SheetModal onClose={() => setShowDetalle(false)} title="Historial de abonos" subtitle={deudaDetalle?.nombre}>
+          <SimuladorPagoExtra
+            deuda={deudaDetalle}
+            proyeccion={proyecciones[deudaDetalle?.id]}
+            extra={extraSimulado}
+            onExtraChange={setExtraSimulado}
+          />
+
           {loadingAbonos && (
             <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>
               Cargando...
@@ -625,6 +653,74 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDeta
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function SimuladorPagoExtra({ deuda, proyeccion, extra, onExtraChange }) {
+  if (!deuda) return null
+
+  if (!proyeccion || proyeccion.sinAbonos) {
+    return (
+      <div style={{
+        background: 'var(--color-bg)', borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)',
+        fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', lineHeight: 1.5,
+      }}>
+        Registra al menos un abono para poder simular pagos extra.
+      </div>
+    )
+  }
+
+  const saldo = Number(deuda.saldo_actual || 0)
+  const promedioActual = proyeccion.promedioMensual
+  const extraNum = Number(extra) || 0
+  const base = simularAmortizacion(saldo, promedioActual, deuda.tasa_interes)
+  const conExtra = extraNum > 0 ? simularAmortizacion(saldo, promedioActual + extraNum, deuda.tasa_interes) : null
+
+  return (
+    <div style={{
+      background: 'var(--color-primary-light)', borderRadius: 'var(--radius-md)',
+      padding: 'var(--space-4)', marginBottom: 'var(--space-4)',
+    }}>
+      <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)', marginBottom: 'var(--space-2)' }}>
+        Simulador: ¿qué pasa si pago extra?
+      </p>
+      <div className="ds-field" style={{ marginBottom: 'var(--space-3)' }}>
+        <label htmlFor="sim-extra" className="ds-label">
+          Abono extra mensual ({deuda.moneda})
+        </label>
+        <input id="sim-extra" type="number" step="0.01" min="0" value={extra}
+          onChange={e => onExtraChange(e.target.value)}
+          placeholder="0.00" className="ds-input" />
+      </div>
+
+      {!base && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-danger)', lineHeight: 1.5 }}>
+          Al ritmo actual, el interés supera el pago mensual — esta deuda no se estaría reduciendo.
+        </p>
+      )}
+
+      {base && extraNum > 0 && conExtra && (
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)', lineHeight: 1.6 }}>
+          <p>
+            Ritmo actual: <strong>{base.meses} {base.meses === 1 ? 'mes' : 'meses'}</strong> restantes,
+            {' '}≈{base.interesTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {deuda.moneda} en interés.
+          </p>
+          <p style={{ marginTop: 'var(--space-1)', fontWeight: 700, color: 'var(--color-primary)' }}>
+            Con {extraNum.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {deuda.moneda} extra/mes:{' '}
+            {conExtra.meses} {conExtra.meses === 1 ? 'mes' : 'meses'} —
+            {' '}ahorrarías {Math.max(0, base.meses - conExtra.meses)} {(base.meses - conExtra.meses) === 1 ? 'mes' : 'meses'} y{' '}
+            {Math.max(0, base.interesTotal - conExtra.interesTotal).toLocaleString('es-DO', { minimumFractionDigits: 2 })} {deuda.moneda} de interés.
+          </p>
+        </div>
+      )}
+
+      {base && extraNum > 0 && !conExtra && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+          Calculando... si esto no cambia, prueba con un monto extra menor.
+        </p>
+      )}
     </div>
   )
 }

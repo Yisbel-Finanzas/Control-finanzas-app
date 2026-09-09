@@ -34,6 +34,7 @@ export default function Metas() {
   const [sheet, setSheet] = useState(null) // null | 'nueva' | { meta } | { abono, meta }
   const [proyecciones, setProyecciones] = useState({}) // { [meta_id]: { mesesRestantes, sinAbonos } }
   const [toast, setToast] = useState(null) // { msg, type: 'info'|'success'|'danger' }
+  const [perfilesMap, setPerfilesMap] = useState({})
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type })
@@ -55,6 +56,11 @@ export default function Metas() {
     fetchMetas()
     supabase.from('cuentas').select('id,banco,producto').eq('activo', true)
       .then(({ data }) => setCuentas(data || []))
+    supabase.from('perfiles').select('id, nombre').then(({ data }) => {
+      const map = {}
+      ;(data || []).forEach(p => { map[p.id] = p.nombre })
+      setPerfilesMap(map)
+    })
   }, [fetchMetas])
 
   // Proyección de meses restantes por meta, basada en el ritmo promedio de abonos históricos
@@ -120,6 +126,7 @@ export default function Metas() {
                 proyeccion={proyecciones[m.id]}
                 onAbono={() => setSheet({ abono: true, meta: m })}
                 onEdit={() => setSheet({ meta: m })}
+                onVerAportes={() => setSheet({ aportes: true, meta: m })}
                 onArchivar={async () => {
                   await supabase.from('metas_ahorro').update({ activo: false }).eq('id', m.id)
                   fetchMetas()
@@ -140,6 +147,7 @@ export default function Metas() {
                 meta={m}
                 isAdmin={isAdmin}
                 completada
+                onVerAportes={() => setSheet({ aportes: true, meta: m })}
                 onArchivar={async () => {
                   await supabase.from('metas_ahorro').update({ activo: false }).eq('id', m.id)
                   fetchMetas()
@@ -186,6 +194,15 @@ export default function Metas() {
         />
       )}
 
+      {/* Sheet: aportes por usuario */}
+      {sheet?.aportes && (
+        <AportesSheet
+          meta={sheet.meta}
+          perfilesMap={perfilesMap}
+          onClose={() => setSheet(null)}
+        />
+      )}
+
       {/* Toast de hitos */}
       {toast && (
         <div
@@ -221,7 +238,7 @@ export default function Metas() {
   )
 }
 
-function MetaCard({ meta, isAdmin, completada, proyeccion, onAbono, onEdit, onArchivar }) {
+function MetaCard({ meta, isAdmin, completada, proyeccion, onAbono, onEdit, onVerAportes, onArchivar }) {
   const pct = Math.min(100, Math.round((Number(meta.monto_actual) / Number(meta.monto_objetivo)) * 100))
   const dias = diasRestantes(meta.fecha_objetivo)
   const vencida = dias !== null && dias < 0 && !completada
@@ -310,6 +327,9 @@ function MetaCard({ meta, isAdmin, completada, proyeccion, onAbono, onEdit, onAr
           )}
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <button onClick={onVerAportes} className="ds-btn ds-btn-ghost ds-btn-sm">
+            Ver aportes
+          </button>
           {!completada && (
             <button onClick={onAbono} className="ds-btn ds-btn-primary ds-btn-sm">
               + Abonar
@@ -498,6 +518,79 @@ function AbonoSheet({ meta, perfil, onClose, onSave }) {
         </p>
         <SheetBotones onClose={onClose} loading={loading} label="Registrar abono" />
       </form>
+    </SheetModal>
+  )
+}
+
+function AportesSheet({ meta, perfilesMap, onClose }) {
+  const [abonos, setAbonos] = useState(null) // null=loading
+
+  useEffect(() => {
+    supabase.from('abonos_meta')
+      .select('id, monto, fecha, nota, created_by')
+      .eq('meta_id', meta.id)
+      .order('fecha', { ascending: false })
+      .then(({ data }) => setAbonos(data || []))
+  }, [meta.id])
+
+  const porUsuario = {}
+  for (const a of abonos || []) {
+    const nombre = perfilesMap[a.created_by] || 'Sin asignar'
+    porUsuario[nombre] = (porUsuario[nombre] || 0) + Number(a.monto)
+  }
+  const mostrarDesglose = Object.keys(porUsuario).length > 1
+
+  return (
+    <SheetModal onClose={onClose} title="Aportes" subtitle={meta.nombre}>
+      {abonos === null && (
+        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>Cargando...</p>
+      )}
+
+      {abonos !== null && abonos.length === 0 && (
+        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>
+          Todavía no se han registrado abonos.
+        </p>
+      )}
+
+      {mostrarDesglose && (
+        <div style={{
+          background: 'var(--color-primary-light)', borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-4)', marginBottom: 'var(--space-4)',
+        }}>
+          <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>
+            Aportado por usuario
+          </p>
+          {Object.entries(porUsuario)
+            .sort((a, b) => b[1] - a[1])
+            .map(([nombre, total]) => (
+              <div key={nombre} style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-1) 0' }}>
+                <span style={{ fontSize: 'var(--text-sm)' }}>{nombre}</span>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(total, meta.moneda)}
+                </span>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {abonos !== null && abonos.map(a => (
+        <div key={a.id} style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: 'var(--space-3) 0', borderBottom: '1px solid var(--color-border)',
+        }}>
+          <div>
+            <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>
+              {new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+              {perfilesMap[a.created_by] || 'Sin asignar'}{a.nota ? ` · ${a.nota}` : ''}
+            </p>
+          </div>
+          <p style={{ fontWeight: 700, color: 'var(--color-success)', fontVariantNumeric: 'tabular-nums' }}>
+            {fmt(a.monto, meta.moneda)}
+          </p>
+        </div>
+      ))}
     </SheetModal>
   )
 }
