@@ -16,7 +16,18 @@ export function useAnalisisIA() {
     setLoading(false)
 
     if (fnError) {
-      setError(fnError.message || 'Error al conectar con la IA')
+      // fnError.message es genérico ("Edge Function returned a non-2xx status code");
+      // el mensaje real viene en el cuerpo JSON de la respuesta (fnError.context).
+      let mensaje = fnError.message || 'Error al conectar con la IA'
+      if (fnError.context) {
+        try {
+          const body = await fnError.context.json()
+          if (body?.error) mensaje = body.error
+        } catch {
+          // el cuerpo no era JSON válido; se mantiene el mensaje genérico
+        }
+      }
+      setError(mensaje)
       return
     }
     if (data?.error) {
