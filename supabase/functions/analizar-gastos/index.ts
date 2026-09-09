@@ -5,7 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MODELO = 'llama-3.1-8b-instant'
+// llama-3.1-8b-instant fue descontinuado por Groq el 16/08/2026 para cuentas no-enterprise;
+// openai/gpt-oss-20b es el reemplazo recomendado por Groq para ese tier.
+const MODELO = 'openai/gpt-oss-20b'
 
 async function llamarGroq(groqApiKey: string, prompt: string, maxTokens: number) {
   const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
