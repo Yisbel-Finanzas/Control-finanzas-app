@@ -16,12 +16,29 @@ function diasRestantes(fecha) {
   return diff
 }
 
+const MILESTONES = [25, 50, 75, 100]
+
+// Meses transcurridos entre dos fechas 'YYYY-MM-DD', mínimo 1
+function mesesTranscurridos(desde, hasta) {
+  const a = new Date(desde + 'T12:00:00')
+  const b = new Date(hasta + 'T12:00:00')
+  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+  return Math.max(1, meses)
+}
+
 export default function Metas() {
   const perfil = usePerfil()
   const [metas, setMetas] = useState([])
   const [cuentas, setCuentas] = useState([])
   const [loading, setLoading] = useState(true)
   const [sheet, setSheet] = useState(null) // null | 'nueva' | { meta } | { abono, meta }
+  const [proyecciones, setProyecciones] = useState({}) // { [meta_id]: { mesesRestantes, sinAbonos } }
+  const [toast, setToast] = useState(null) // { msg, type: 'info'|'success'|'danger' }
+
+  const showToast = useCallback((msg, type = 'info') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 4000)
+  }, [])
 
   const fetchMetas = useCallback(async () => {
     setLoading(true)
@@ -39,6 +56,37 @@ export default function Metas() {
     supabase.from('cuentas').select('id,banco,producto').eq('activo', true)
       .then(({ data }) => setCuentas(data || []))
   }, [fetchMetas])
+
+  // Proyección de meses restantes por meta, basada en el ritmo promedio de abonos históricos
+  useEffect(() => {
+    if (metas.length === 0) { setProyecciones({}); return }
+    const ids = metas.map(m => m.id)
+    supabase
+      .from('abonos_meta')
+      .select('meta_id, monto, fecha')
+      .in('meta_id', ids)
+      .then(({ data }) => {
+        const porMeta = {}
+        for (const a of data || []) {
+          if (!porMeta[a.meta_id]) porMeta[a.meta_id] = { total: 0, primeraFecha: a.fecha }
+          porMeta[a.meta_id].total += Number(a.monto)
+          if (a.fecha < porMeta[a.meta_id].primeraFecha) porMeta[a.meta_id].primeraFecha = a.fecha
+        }
+        const hoy = new Date().toISOString().split('T')[0]
+        const resultado = {}
+        for (const m of metas) {
+          const info = porMeta[m.id]
+          if (!info) { resultado[m.id] = { sinAbonos: true }; continue }
+          const meses = mesesTranscurridos(info.primeraFecha, hoy)
+          const promedioMensual = info.total / meses
+          const falta = Math.max(0, Number(m.monto_objetivo) - Number(m.monto_actual))
+          resultado[m.id] = promedioMensual > 0
+            ? { mesesRestantes: Math.ceil(falta / promedioMensual), sinAbonos: false }
+            : { sinAbonos: true }
+        }
+        setProyecciones(resultado)
+      })
+  }, [metas])
 
   const isAdmin = perfil?.rol === 'administradora'
   const metasActivas = metas.filter(m => Number(m.monto_actual) < Number(m.monto_objetivo))
@@ -69,6 +117,7 @@ export default function Metas() {
                 key={m.id}
                 meta={m}
                 isAdmin={isAdmin}
+                proyeccion={proyecciones[m.id]}
                 onAbono={() => setSheet({ abono: true, meta: m })}
                 onEdit={() => setSheet({ meta: m })}
                 onArchivar={async () => {
@@ -122,14 +171,57 @@ export default function Metas() {
           meta={sheet.meta}
           perfil={perfil}
           onClose={() => setSheet(null)}
-          onSave={() => { setSheet(null); fetchMetas() }}
+          onSave={(cruzado) => {
+            setSheet(null)
+            fetchMetas()
+            if (cruzado) {
+              showToast(
+                cruzado === 100
+                  ? `🎉 ¡Meta "${sheet.meta.nombre}" lograda!`
+                  : `🎉 ¡Vas al ${cruzado}% de tu meta "${sheet.meta.nombre}"!`,
+                'success'
+              )
+            }
+          }}
         />
+      )}
+
+      {/* Toast de hitos */}
+      {toast && (
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: `calc(var(--bottomnav-h) + var(--space-4))`,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 500,
+            background: toast.type === 'danger'
+              ? 'var(--color-danger)'
+              : toast.type === 'success'
+                ? 'var(--color-success)'
+                : '#1e293b',
+            color: '#fff',
+            padding: 'var(--space-3) var(--space-5)',
+            borderRadius: 'var(--radius-full)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 500,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+            whiteSpace: 'nowrap',
+            maxWidth: 'calc(100vw - var(--space-8))',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {toast.msg}
+        </div>
       )}
     </div>
   )
 }
 
-function MetaCard({ meta, isAdmin, completada, onAbono, onEdit, onArchivar }) {
+function MetaCard({ meta, isAdmin, completada, proyeccion, onAbono, onEdit, onArchivar }) {
   const pct = Math.min(100, Math.round((Number(meta.monto_actual) / Number(meta.monto_objetivo)) * 100))
   const dias = diasRestantes(meta.fecha_objetivo)
   const vencida = dias !== null && dias < 0 && !completada
@@ -154,8 +246,8 @@ function MetaCard({ meta, isAdmin, completada, onAbono, onEdit, onArchivar }) {
         </span>
       </div>
 
-      {/* Barra de progreso */}
-      <div className="ds-progress-track" style={{ marginBottom: 'var(--space-3)' }}>
+      {/* Barra de progreso con marcadores de hitos */}
+      <div className="ds-progress-track" style={{ marginBottom: 'var(--space-1)', position: 'relative' }}>
         <div
           className="ds-progress-fill"
           style={{
@@ -164,7 +256,23 @@ function MetaCard({ meta, isAdmin, completada, onAbono, onEdit, onArchivar }) {
             transition: 'width 0.4s ease',
           }}
         />
+        {[25, 50, 75].map(h => (
+          <div key={h} style={{
+            position: 'absolute', top: 0, bottom: 0, left: `${h}%`,
+            width: '1.5px', background: 'rgba(255,255,255,0.6)',
+          }} />
+        ))}
       </div>
+
+      {!completada && proyeccion && (
+        <p style={{ fontSize: 'var(--text-xs)', color: proyeccion.sinAbonos ? 'var(--color-text-muted)' : 'var(--color-primary)', fontWeight: 600, marginBottom: 'var(--space-3)' }}>
+          {proyeccion.sinAbonos
+            ? 'Registra abonos para ver una proyección'
+            : proyeccion.mesesRestantes <= 0
+              ? '✓ Al ritmo actual, ya deberías haberla alcanzado'
+              : `≈${proyeccion.mesesRestantes} ${proyeccion.mesesRestantes === 1 ? 'mes' : 'meses'} restantes al ritmo actual`}
+        </p>
+      )}
 
       {/* Montos */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
@@ -342,8 +450,16 @@ function AbonoSheet({ meta, perfil, onClose, onSave }) {
       }),
     ])
     setLoading(false)
-    if (e1 || e2 || e3) setError((e1 || e2 || e3).message)
-    else onSave()
+    if (e1 || e2 || e3) { setError((e1 || e2 || e3).message); return }
+
+    const objetivo = Number(meta.monto_objetivo)
+    let cruzado = null
+    if (objetivo > 0) {
+      const pctAntes = Math.min(100, (Number(meta.monto_actual) / objetivo) * 100)
+      const pctDespues = Math.min(100, (nuevoTotal / objetivo) * 100)
+      cruzado = MILESTONES.filter(hito => pctAntes < hito && pctDespues >= hito).pop() || null
+    }
+    onSave(cruzado)
   }
 
   const falta = Math.max(0, Number(meta.monto_objetivo) - Number(meta.monto_actual))

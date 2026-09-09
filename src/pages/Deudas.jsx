@@ -1,10 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import { IconList, IconPlus } from '../components/icons/NavIcons'
 
 const emptyDeuda = { nombre: '', tipo: 'prestamo', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '' }
 const emptyAbono = { monto: '', moneda: 'DOP', fecha: new Date().toISOString().split('T')[0], cuenta_origen_id: '', categoria_id: '' }
+
+const MILESTONES = [25, 50, 75, 100]
+
+// Meses transcurridos entre dos fechas 'YYYY-MM-DD', mínimo 1
+function mesesTranscurridos(desde, hasta) {
+  const a = new Date(desde + 'T12:00:00')
+  const b = new Date(hasta + 'T12:00:00')
+  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+  return Math.max(1, meses)
+}
 
 export default function Deudas() {
   const perfil = usePerfil()
@@ -24,8 +34,16 @@ export default function Deudas() {
   const [deudaDetalle, setDeudaDetalle] = useState(null)
   const [abonosDetalle, setAbonosDetalle] = useState([])
   const [loadingAbonos, setLoadingAbonos] = useState(false)
+  const [orden, setOrden] = useState('ninguno') // 'ninguno' | 'snowball' | 'avalancha'
+  const [proyecciones, setProyecciones] = useState({}) // { [deuda_id]: { mesesRestantes, sinAbonos } }
+  const [toast, setToast] = useState(null) // { msg, type: 'info'|'success'|'danger' }
 
   const isAdmin = perfil?.rol === 'administradora'
+
+  const showToast = useCallback((msg, type = 'info') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 4000)
+  }, [])
 
   async function fetchDeudas() {
     setLoading(true)
@@ -47,6 +65,36 @@ export default function Deudas() {
   }
 
   useEffect(() => { fetchDeudas(); fetchCuentas(); fetchCategorias() }, [])
+
+  // Proyección de meses restantes por deuda, basada en el ritmo promedio de abonos históricos
+  useEffect(() => {
+    if (deudas.length === 0) { setProyecciones({}); return }
+    const ids = deudas.map(d => d.id)
+    supabase
+      .from('abonos_deuda')
+      .select('deuda_id, monto, fecha')
+      .in('deuda_id', ids)
+      .then(({ data }) => {
+        const porDeuda = {}
+        for (const a of data || []) {
+          if (!porDeuda[a.deuda_id]) porDeuda[a.deuda_id] = { total: 0, primeraFecha: a.fecha }
+          porDeuda[a.deuda_id].total += Number(a.monto)
+          if (a.fecha < porDeuda[a.deuda_id].primeraFecha) porDeuda[a.deuda_id].primeraFecha = a.fecha
+        }
+        const hoy = new Date().toISOString().split('T')[0]
+        const resultado = {}
+        for (const d of deudas) {
+          const info = porDeuda[d.id]
+          if (!info) { resultado[d.id] = { sinAbonos: true }; continue }
+          const meses = mesesTranscurridos(info.primeraFecha, hoy)
+          const promedioMensual = info.total / meses
+          resultado[d.id] = promedioMensual > 0
+            ? { mesesRestantes: Math.ceil(Number(d.saldo_actual || 0) / promedioMensual), sinAbonos: false }
+            : { sinAbonos: true }
+        }
+        setProyecciones(resultado)
+      })
+  }, [deudas])
 
   function openNuevaDeuda() { setEditDeuda(null); setFormDeuda(emptyDeuda); setShowDeudaForm(true) }
   function openEditDeuda(d) {
@@ -147,6 +195,22 @@ export default function Deudas() {
     setSaving(false)
     const abonoErr = results.find(r => r.error)?.error
     if (abonoErr) { alert('Error al registrar abono: ' + (abonoErr.message || JSON.stringify(abonoErr))); return }
+
+    const limite = Number(deudaParaAbonar.limite_o_monto_original || 0)
+    if (limite > 0) {
+      const pctAntes = Math.max(0, (1 - Number(deudaParaAbonar.saldo_actual || 0) / limite) * 100)
+      const pctDespues = Math.min(100, (1 - nuevoSaldo / limite) * 100)
+      const cruzado = MILESTONES.filter(m => pctAntes < m && pctDespues >= m).pop()
+      if (cruzado) {
+        showToast(
+          cruzado === 100
+            ? `🎉 ¡"${deudaParaAbonar.nombre}" saldada por completo!`
+            : `🎉 ¡Vas al ${cruzado}% de saldar "${deudaParaAbonar.nombre}"!`,
+          'success'
+        )
+      }
+    }
+
     setShowAbonoForm(false)
     await fetchDeudas()
   }
@@ -161,6 +225,12 @@ export default function Deudas() {
     if (d.saldo_actual) acc[d.moneda] = (acc[d.moneda] || 0) + Number(d.saldo_actual)
     return acc
   }, {})
+
+  const deudasOrdenadas = [...deudas].sort((a, b) => {
+    if (orden === 'snowball') return Number(a.saldo_actual || 0) - Number(b.saldo_actual || 0)
+    if (orden === 'avalancha') return Number(b.tasa_interes || 0) - Number(a.tasa_interes || 0)
+    return 0
+  })
 
   return (
     <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto' }}>
@@ -207,7 +277,30 @@ export default function Deudas() {
           </div>
         )}
 
-        {deudas.map(d => (
+        {deudas.length > 1 && (
+          <div role="group" aria-label="Ordenar deudas" style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+            {[['ninguno', 'Sin orden'], ['snowball', 'Bola de nieve'], ['avalancha', 'Avalancha']].map(([val, label]) => (
+              <button key={val} type="button" aria-pressed={orden === val}
+                onClick={() => setOrden(val)}
+                className="ds-btn ds-btn-sm"
+                style={{
+                  flex: 1,
+                  border: `1.5px solid ${orden === val ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                  background: orden === val ? 'var(--color-primary-light)' : 'transparent',
+                  color: orden === val ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                }}>{label}</button>
+            ))}
+          </div>
+        )}
+        {orden !== 'ninguno' && (
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', marginTop: `calc(-1 * var(--space-2))` }}>
+            {orden === 'snowball'
+              ? 'Prioriza saldar primero la deuda con menor saldo — motivación rápida.'
+              : 'Prioriza saldar primero la deuda con mayor tasa de interés — ahorra más dinero.'}
+          </p>
+        )}
+
+        {deudasOrdenadas.map(d => (
           <DeudaCard
             key={d.id}
             deuda={d}
@@ -216,12 +309,45 @@ export default function Deudas() {
             onAbono={openAbono}
             onDesactivar={handleDesactivar}
             onVerDetalle={openDetalle}
+            proyeccion={proyecciones[d.id]}
           />
         ))}
       </div>
 
       {isAdmin && (
         <button onClick={openNuevaDeuda} className="ds-fab" aria-label="Nueva deuda"><IconPlus size={24} /></button>
+      )}
+
+      {/* Toast de hitos */}
+      {toast && (
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: `calc(var(--bottomnav-h) + var(--space-4))`,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 500,
+            background: toast.type === 'danger'
+              ? 'var(--color-danger)'
+              : toast.type === 'success'
+                ? 'var(--color-success)'
+                : '#1e293b',
+            color: '#fff',
+            padding: 'var(--space-3) var(--space-5)',
+            borderRadius: 'var(--radius-full)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 500,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+            whiteSpace: 'nowrap',
+            maxWidth: 'calc(100vw - var(--space-8))',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {toast.msg}
+        </div>
       )}
 
       {/* Modal detalle de abonos */}
@@ -416,7 +542,7 @@ export default function Deudas() {
   )
 }
 
-function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDetalle }) {
+function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDetalle, proyeccion }) {
   const saldo  = Number(d.saldo_actual || 0)
   const limite = Number(d.limite_o_monto_original || 0)
   const pct    = limite > 0 ? Math.min((saldo / limite) * 100, 100) : null
@@ -463,6 +589,16 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDeta
         {d.fecha_ultima_actualizacion && (
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-1)' }}>
             Actualizado: {new Date(d.fecha_ultima_actualizacion + 'T12:00:00').toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+        )}
+
+        {proyeccion && (
+          <p style={{ fontSize: 'var(--text-xs)', color: proyeccion.sinAbonos ? 'var(--color-text-muted)' : 'var(--color-primary)', fontWeight: 600, marginBottom: 'var(--space-1)' }}>
+            {proyeccion.sinAbonos
+              ? 'Registra abonos para ver una proyección'
+              : proyeccion.mesesRestantes <= 0
+                ? '✓ Al ritmo actual, ya deberías tenerla saldada'
+                : `≈${proyeccion.mesesRestantes} ${proyeccion.mesesRestantes === 1 ? 'mes' : 'meses'} restantes al ritmo actual`}
           </p>
         )}
 
