@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import { IconChart, IconCalendar } from '../components/icons/NavIcons'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import AnalisisIA from '../components/AnalisisIA'
+
+// Paleta para el gráfico de torta por categoría — derivada de los tokens de design-system.css
+const CATEGORY_COLORS = ['#6FAE8A', '#A88BC7', '#E8B04B', '#D96B6B', '#4E8C69', '#B8D9C9', '#C9A9E8', '#9D9D97']
 
 function fmt(n, moneda) {
   return Number(n).toLocaleString('es-DO', { minimumFractionDigits: 2 }) + ' ' + moneda
@@ -215,6 +218,37 @@ export default function Resumen() {
                   )
                 })}
 
+                {/* Comparativa mes actual vs. anterior */}
+                {monedas.map(mon => {
+                  const ing = totales.ingresos[mon] || 0
+                  const gas = totales.gastos[mon] || 0
+                  const ingPrev = totalesPrev.ingresos[mon] || 0
+                  const gasPrev = totalesPrev.gastos[mon] || 0
+                  if (ingPrev === 0 && gasPrev === 0) return null
+                  const compData = [
+                    { periodo: mesCorto(prevMonth), Ingresos: ingPrev, Gastos: gasPrev },
+                    { periodo: mesCorto(month), Ingresos: ing, Gastos: gas },
+                  ]
+                  return (
+                    <div key={`comp-${mon}`} className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
+                      <p className="ds-section-label">Este mes vs. anterior · {mon}</p>
+                      <ResponsiveContainer width="100%" height={150}>
+                        <BarChart data={compData} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="periodo" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+                          <YAxis tickFormatter={fmtShort} tick={{ fontSize: 9, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+                          <Tooltip
+                            formatter={(v, name) => [fmtShort(v) + ' ' + mon, name]}
+                            contentStyle={{ fontSize: '11px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
+                          />
+                          <Bar dataKey="Ingresos" fill="var(--color-success)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                          <Bar dataKey="Gastos"   fill="var(--color-danger)"  radius={[4, 4, 0, 0]} maxBarSize={40} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )
+                })}
+
                 {/* Mayor gasto del mes */}
                 {gastosCat.length > 0 && (
                   <div className="ds-card" style={{
@@ -242,6 +276,44 @@ export default function Resumen() {
                 {gastosCat.length > 0 && (
                   <div className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
                     <p className="ds-section-label">Gastos por categoría</p>
+
+                    {/* Gráfico de torta por moneda */}
+                    {['DOP', 'USD'].map(mon => {
+                      const total = mon === 'DOP' ? totalGastosDOP : totalGastosUSD
+                      if (total === 0) return null
+                      const pieData = gastosCat
+                        .map(c => ({ nombre: c.nombre, value: mon === 'DOP' ? c.totalDOP : c.totalUSD }))
+                        .filter(c => c.value > 0)
+                      return (
+                        <div key={`pie-${mon}`} style={{ marginBottom: 'var(--space-4)' }}>
+                          <ResponsiveContainer width="100%" height={200}>
+                            <PieChart>
+                              <Pie
+                                data={pieData}
+                                cx="50%" cy="50%"
+                                innerRadius={40} outerRadius={70}
+                                dataKey="value"
+                                nameKey="nombre"
+                                stroke="none"
+                              >
+                                {pieData.map((_, i) => (
+                                  <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                formatter={(v, name) => [fmt(v, mon), name]}
+                                contentStyle={{ fontSize: '12px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
+                              />
+                              <Legend
+                                wrapperStyle={{ fontSize: '11px' }}
+                                formatter={(value) => value}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )
+                    })}
+
                     {gastosCat.map(({ nombre, totalDOP, totalUSD }) => {
                       const pctDOP = totalGastosDOP > 0 ? (totalDOP / totalGastosDOP) * 100 : 0
                       const pctUSD = totalGastosUSD > 0 ? (totalUSD / totalGastosUSD) * 100 : 0

@@ -365,21 +365,26 @@ function BudgetWidget({ navigate }) {
       {items.map(p => {
         const pct = Math.min(100, Math.round((p.gastado / Number(p.monto_limite)) * 100))
         const excedido = p.gastado > Number(p.monto_limite)
+        const advertencia = !excedido && pct >= 80
         return (
           <div key={p.id} style={{ marginBottom: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-1)' }}>
               <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                 {p.categorias?.nombre}
               </span>
-              <span style={{ fontSize: 'var(--text-xs)', fontVariantNumeric: 'tabular-nums',
-                color: excedido ? 'var(--color-danger)' : pct >= 80 ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
-                {pct}%
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                {excedido && <span className="ds-badge ds-badge-danger">Excedido</span>}
+                {advertencia && <span className="ds-badge ds-badge-warning">Alerta</span>}
+                <span style={{ fontSize: 'var(--text-xs)', fontVariantNumeric: 'tabular-nums',
+                  color: excedido ? 'var(--color-danger)' : advertencia ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
+                  {pct}%
+                </span>
+              </div>
             </div>
             <div className="ds-progress-track">
               <div className="ds-progress-fill" style={{
                 width: `${pct}%`,
-                background: excedido ? 'var(--color-danger)' : pct >= 80 ? 'var(--color-warning)' : 'var(--color-primary)',
+                background: excedido ? 'var(--color-danger)' : advertencia ? 'var(--color-warning)' : 'var(--color-primary)',
               }} />
             </div>
           </div>
