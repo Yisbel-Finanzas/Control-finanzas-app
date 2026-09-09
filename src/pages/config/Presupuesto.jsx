@@ -31,9 +31,16 @@ export default function ConfigPresupuesto() {
   const hasta = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
   const mesLabel = now.toLocaleDateString('es-DO', { month: 'long', year: 'numeric' })
 
+  const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
+  const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth()
+  const desdePrev = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`
+  const hastaPrev = new Date(prevYear, prevMonth, 0).toISOString().split('T')[0]
+
+  const [gastosMesAnterior, setGastosMesAnterior] = useState({})
+
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [{ data: presp }, { data: cats }, { data: movs }] = await Promise.all([
+    const [{ data: presp }, { data: cats }, { data: movs }, { data: movsPrev }] = await Promise.all([
       supabase.from('presupuestos').select('*, categorias(nombre)').order('created_at'),
       supabase.from('categorias').select('id, nombre').eq('tipo', 'gasto').eq('activo', true).order('nombre'),
       supabase.from('movimientos')
@@ -42,6 +49,12 @@ export default function ConfigPresupuesto() {
         .is('deleted_at', null)
         .gte('fecha', desde)
         .lte('fecha', hasta),
+      supabase.from('movimientos')
+        .select('categoria_id, monto, moneda')
+        .eq('tipo', 'gasto')
+        .is('deleted_at', null)
+        .gte('fecha', desdePrev)
+        .lte('fecha', hastaPrev),
     ])
     setPresupuestos(presp || [])
     setCategorias(cats || [])
@@ -51,8 +64,14 @@ export default function ConfigPresupuesto() {
       gastos[key] = (gastos[key] || 0) + Number(m.monto)
     })
     setGastosActuales(gastos)
+    const gastosPrev = {}
+    ;(movsPrev || []).forEach(m => {
+      const key = `${m.categoria_id}:${m.moneda}`
+      gastosPrev[key] = (gastosPrev[key] || 0) + Number(m.monto)
+    })
+    setGastosMesAnterior(gastosPrev)
     setLoading(false)
-  }, [desde, hasta])
+  }, [desde, hasta, desdePrev, hastaPrev])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -121,8 +140,14 @@ export default function ConfigPresupuesto() {
 
             {!loading && presupuestos.map(p => {
               const gastado = gastosActuales[`${p.categoria_id}:${p.moneda}`] || 0
-              const pct = Math.min(100, Math.round((gastado / Number(p.monto_limite)) * 100))
-              const excedido = gastado > Number(p.monto_limite)
+              const gastadoPrev = gastosMesAnterior[`${p.categoria_id}:${p.moneda}`] || 0
+              const rollover = p.rollover_activo
+                ? Math.max(0, Number(p.monto_limite) - gastadoPrev)
+                : 0
+              const limiteEfectivo = Number(p.monto_limite) + rollover
+              const disponible = limiteEfectivo - gastado
+              const pct = Math.min(100, Math.round((gastado / limiteEfectivo) * 100))
+              const excedido = gastado > limiteEfectivo
               const advertencia = !excedido && pct >= 80
               return (
                 <div key={p.id} className="ds-card" style={{
@@ -136,9 +161,11 @@ export default function ConfigPresupuesto() {
                       </p>
                       <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}>
                         Límite: {fmt(p.monto_limite, p.moneda)}
+                        {rollover > 0 && <> + {fmt(rollover, p.moneda)} del mes anterior</>}
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                      {p.rollover_activo && <span className="ds-badge" style={{ background: 'var(--color-border)', color: 'var(--color-text-muted)' }}>↻</span>}
                       {excedido && <span className="ds-badge ds-badge-danger">Excedido</span>}
                       {advertencia && <span className="ds-badge ds-badge-warning">Alerta</span>}
                       {isAdmin && (
@@ -159,8 +186,8 @@ export default function ConfigPresupuesto() {
                     <span style={{ fontSize: 'var(--text-xs)', color: excedido ? 'var(--color-danger)' : 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}>
                       Gastado: {fmt(gastado, p.moneda)}
                     </span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmt(Math.max(0, Number(p.monto_limite) - gastado), p.moneda)} restante
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: disponible < 0 ? 'var(--color-danger)' : 'var(--color-success)', fontVariantNumeric: 'tabular-nums' }}>
+                      {disponible < 0 ? '−' : ''}{fmt(Math.abs(disponible), p.moneda)} disponible
                     </span>
                   </div>
                 </div>
@@ -206,6 +233,7 @@ function PresupuestoSheet({ categorias, perfil, onClose, onSave }) {
   const [categoriaId, setCategoriaId] = useState('')
   const [moneda, setMoneda] = useState('DOP')
   const [monto, setMonto] = useState('')
+  const [rolloverActivo, setRolloverActivo] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -216,7 +244,7 @@ function PresupuestoSheet({ categorias, perfil, onClose, onSave }) {
     if (!monto || Number(monto) <= 0) { setError('El monto debe ser mayor a 0.'); return }
     setLoading(true)
     const { error } = await supabase.from('presupuestos').upsert(
-      { categoria_id: categoriaId, moneda, monto_limite: parseFloat(monto), created_by: perfil?.id },
+      { categoria_id: categoriaId, moneda, monto_limite: parseFloat(monto), rollover_activo: rolloverActivo, created_by: perfil?.id },
       { onConflict: 'categoria_id,moneda' }
     )
     setLoading(false)
@@ -260,6 +288,12 @@ function PresupuestoSheet({ categorias, perfil, onClose, onSave }) {
               </select>
             </div>
           </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={rolloverActivo} onChange={e => setRolloverActivo(e.target.checked)} />
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>
+              Acumular sobrante al mes siguiente
+            </span>
+          </label>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)', lineHeight: 1.5 }}>
             Si ya existe un límite para esta categoría y moneda, se actualizará.
           </p>
