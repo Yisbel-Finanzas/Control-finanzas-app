@@ -9,26 +9,34 @@ const corsHeaders = {
 // openai/gpt-oss-20b es el reemplazo recomendado por Groq para ese tier.
 const MODELO = 'openai/gpt-oss-20b'
 
-async function llamarGroq(groqApiKey: string, prompt: string, maxTokens: number) {
-  const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${groqApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODELO,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: maxTokens,
-      temperature: 0.7,
-    }),
-  })
-  if (!groqRes.ok) {
+async function llamarGroq(groqApiKey: string, prompt: string, maxTokens: number, intentos = 2) {
+  for (let intento = 1; intento <= intentos; intento++) {
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODELO,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+    })
+    if (groqRes.ok) {
+      const groqData = await groqRes.json()
+      return groqData.choices?.[0]?.message?.content || 'Sin respuesta'
+    }
     const err = await groqRes.text()
+    // Rate limit (429): esperar un poco y reintentar una vez antes de fallar.
+    if (groqRes.status === 429 && intento < intentos) {
+      await new Promise(r => setTimeout(r, 3000))
+      continue
+    }
     throw new Error('Error de Groq: ' + err)
   }
-  const groqData = await groqRes.json()
-  return groqData.choices?.[0]?.message?.content || 'Sin respuesta'
+  throw new Error('Error de Groq: sin respuesta tras reintentos')
 }
 
 Deno.serve(async (req) => {
