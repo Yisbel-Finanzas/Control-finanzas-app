@@ -26,6 +26,15 @@ export default function Movimientos() {
   const [prefill, setPrefill] = useState(null)
   const [filtrosOpen, setFiltrosOpen] = useState(false)
   const [filtros, setFiltros] = useState(FILTROS_INIT)
+  const [perfilesMap, setPerfilesMap] = useState({})
+
+  useEffect(() => {
+    supabase.from('perfiles').select('id, nombre').then(({ data }) => {
+      const map = {}
+      ;(data || []).forEach(p => { map[p.id] = p.nombre })
+      setPerfilesMap(map)
+    })
+  }, [])
 
   // Prellenar el formulario si llegamos desde el recordatorio de pagos recurrentes (Dashboard)
   useEffect(() => {
@@ -329,6 +338,7 @@ export default function Movimientos() {
                 key={m.id}
                 m={m}
                 isAdmin={perfil?.rol === 'administradora'}
+                creadoPor={Object.keys(perfilesMap).length > 1 ? perfilesMap[m.created_by] : null}
                 onEdit={() => handleEdit(m)}
                 onDelete={() => handleDelete(m.id)}
               />
@@ -364,7 +374,7 @@ const labelStyle = {
   marginBottom: 'var(--space-2)',
 }
 
-function MovimientoCard({ m, isAdmin, onEdit, onDelete }) {
+function MovimientoCard({ m, isAdmin, creadoPor, onEdit, onDelete }) {
   const esIngreso = m.tipo === 'ingreso'
   return (
     <div
@@ -394,6 +404,7 @@ function MovimientoCard({ m, isAdmin, onEdit, onDelete }) {
           <span>
             {m.categorias?.nombre}
             {m.subcategoria ? ` · ${m.subcategoria}` : ''}
+            {creadoPor ? ` · ${creadoPor}` : ''}
           </span>
           {m.recurrente && <IconRepeat size={11} aria-label="Recurrente" />}
         </p>

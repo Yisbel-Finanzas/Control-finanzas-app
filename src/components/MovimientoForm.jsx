@@ -32,14 +32,47 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const categoriasFiltered = categorias.filter(c => c.tipo === form.tipo || c.tipo === 'ambos')
 
+  // Detección de posibles duplicados: mismo monto/moneda/cuenta/tipo dentro de ±1 día,
+  // solo al crear un movimiento nuevo (no al editar uno existente)
+  async function hayPosibleDuplicado(monto) {
+    const fechaBase = new Date(form.fecha + 'T12:00:00')
+    const desde = new Date(fechaBase); desde.setDate(desde.getDate() - 1)
+    const hasta = new Date(fechaBase); hasta.setDate(hasta.getDate() + 1)
+    const fmtFecha = d => d.toISOString().split('T')[0]
+
+    let q = supabase.from('movimientos').select('id', { count: 'exact', head: true })
+      .eq('tipo', form.tipo)
+      .eq('monto', monto)
+      .eq('moneda', form.moneda)
+      .is('deleted_at', null)
+      .gte('fecha', fmtFecha(desde))
+      .lte('fecha', fmtFecha(hasta))
+    q = form.cuenta_id ? q.eq('cuenta_id', form.cuenta_id) : q.is('cuenta_id', null)
+
+    const { count } = await q
+    return (count || 0) > 0
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setFormError(null)
     if (!form.cuenta_id) { setFormError('Selecciona una cuenta antes de continuar.'); return }
+    const monto = parseFloat(form.monto)
+
+    if (!item) {
+      const duplicado = await hayPosibleDuplicado(monto)
+      if (duplicado) {
+        const continuar = confirm(
+          'Ya existe un movimiento muy parecido (mismo monto, moneda, cuenta y tipo) registrado cerca de esta fecha. ¿Deseas guardarlo de todas formas?'
+        )
+        if (!continuar) return
+      }
+    }
+
     setLoading(true)
     const payload = {
       ...form,
-      monto:    parseFloat(form.monto),
+      monto,
       cuenta_id: form.cuenta_id || null,
       created_by: perfil?.id,
     }
