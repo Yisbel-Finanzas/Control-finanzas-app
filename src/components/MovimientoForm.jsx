@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase'
 export default function MovimientoForm({ item, initial, perfil, onSave, onClose }) {
   const [categorias, setCategorias] = useState([])
   const [cuentas, setCuentas] = useState([])
+  const [reglasCategorizacion, setReglasCategorizacion] = useState([])
+  const [sugerencia, setSugerencia] = useState(null) // { categoriaId, categoriaNombre, patron }
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState(null)
   const [form, setForm] = useState({
@@ -27,10 +29,21 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
       .then(({ data }) => setCategorias(data || []))
     supabase.from('cuentas').select('id,banco,producto').eq('activo', true)
       .then(({ data }) => setCuentas(data || []))
+    supabase.from('reglas_categorizacion').select('patron_texto, categoria_id, categorias(nombre)')
+      .then(({ data }) => setReglasCategorizacion(data || []))
   }, [])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const categoriasFiltered = categorias.filter(c => c.tipo === form.tipo || c.tipo === 'ambos')
+
+  // Sugiere categoría según el texto de concepto/subcategoría, solo si el usuario no eligió una ya.
+  // Nunca se aplica sola: hay que tocar "Usar" para aceptarla.
+  function buscarSugerencia(concepto, subcategoria) {
+    if (item || form.categoria_id) { setSugerencia(null); return }
+    const texto = `${concepto} ${subcategoria}`.toLowerCase()
+    const match = reglasCategorizacion.find(r => texto.includes(r.patron_texto))
+    setSugerencia(match ? { categoriaId: match.categoria_id, categoriaNombre: match.categorias?.nombre, patron: match.patron_texto } : null)
+  }
 
   // Detección de posibles duplicados: mismo monto/moneda/cuenta/tipo dentro de ±1 día,
   // solo al crear un movimiento nuevo (no al editar uno existente)
@@ -232,12 +245,28 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
           {/* Categoría */}
           <div className="ds-field">
             <label htmlFor="categoria" className="ds-label">Categoría</label>
-            <select id="categoria" value={form.categoria_id} onChange={e => set('categoria_id', e.target.value)} className="ds-input">
+            <select id="categoria" value={form.categoria_id}
+              onChange={e => { set('categoria_id', e.target.value); setSugerencia(null) }} className="ds-input">
               <option value="">Seleccionar...</option>
               {categoriasFiltered.map(c => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </select>
+            {sugerencia && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)',
+                background: 'var(--color-primary-light)', borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-2) var(--space-3)', marginTop: 'var(--space-2)',
+              }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-primary)' }}>
+                  Sugerencia: <strong>{sugerencia.categoriaNombre}</strong> (por "{sugerencia.patron}")
+                </span>
+                <button type="button" onClick={() => { set('categoria_id', sugerencia.categoriaId); setSugerencia(null) }}
+                  className="ds-btn ds-btn-sm" style={{ background: 'var(--color-primary)', color: '#fff', flexShrink: 0 }}>
+                  Usar
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Subcategoría */}
@@ -249,7 +278,7 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
               id="subcategoria"
               type="text"
               value={form.subcategoria}
-              onChange={e => set('subcategoria', e.target.value)}
+              onChange={e => { set('subcategoria', e.target.value); buscarSugerencia(form.concepto, e.target.value) }}
               placeholder="Ej: Laboratorio, Gasolina"
               className="ds-input"
             />
@@ -265,7 +294,7 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
               id="concepto"
               type="text"
               value={form.concepto}
-              onChange={e => set('concepto', e.target.value)}
+              onChange={e => { set('concepto', e.target.value); buscarSugerencia(e.target.value, form.subcategoria) }}
               placeholder="Ej: Pago nómina enero"
               className="ds-input"
             />
