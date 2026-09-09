@@ -117,7 +117,7 @@ export default function IAFloatingButton() {
       .select('tipo, monto, moneda, fecha, categorias(nombre)')
       .is('deleted_at', null)
       .order('fecha', { ascending: false })
-      .limit(500)
+      .limit(150)
     analizar(data || [], `resumen general (últimos ${data?.length || 0} movimientos)`)
   }
 
@@ -221,7 +221,7 @@ export default function IAFloatingButton() {
                     📊 Resumen general
                   </p>
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
-                    Análisis de los últimos 500 movimientos registrados.
+                    Análisis de los últimos 150 movimientos registrados.
                   </p>
                   <button
                     onClick={generarGeneral}
