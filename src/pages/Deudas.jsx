@@ -16,6 +16,32 @@ function mesesTranscurridos(desde, hasta) {
   return Math.max(1, meses)
 }
 
+// Estima cuánto de lo abonado hasta ahora fue interés vs. capital, reconstruyendo el saldo
+// abono por abono desde el monto original. Es una aproximación: asume que el saldo antes del
+// primer abono registrado es `limite_o_monto_original` y que el interés se acumula linealmente
+// entre fechas de abono — no reemplaza la tabla de amortización real del banco.
+function calcularInteresEstimado(abonos, montoOriginal, tasaAnualPct) {
+  if (!montoOriginal || montoOriginal <= 0 || abonos.length === 0) return null
+  const tasaMensual = (Number(tasaAnualPct) || 0) / 100 / 12
+  const ordenados = [...abonos].sort((a, b) => a.fecha.localeCompare(b.fecha))
+  let saldo = Number(montoOriginal)
+  let interesTotal = 0
+  let fechaAnterior = null
+  for (const a of ordenados) {
+    if (fechaAnterior) {
+      const dias = (new Date(a.fecha + 'T12:00:00') - new Date(fechaAnterior + 'T12:00:00')) / 86400000
+      const meses = dias / 30.4368
+      const interesPeriodo = saldo * tasaMensual * meses
+      interesTotal += interesPeriodo
+      saldo -= (Number(a.monto) - interesPeriodo)
+    } else {
+      saldo -= Number(a.monto)
+    }
+    fechaAnterior = a.fecha
+  }
+  return Math.max(0, interesTotal)
+}
+
 // Simulación simple de amortización: aplica interés mensual sobre el saldo y resta el pago,
 // mes a mes, hasta saldar la deuda. Devuelve null si el pago nunca alcanza a cubrir el interés.
 function simularAmortizacion(saldoInicial, pagoMensual, tasaAnualPct) {
@@ -380,6 +406,20 @@ export default function Deudas() {
             extra={extraSimulado}
             onExtraChange={setExtraSimulado}
           />
+
+          {!loadingAbonos && abonosDetalle.length > 0 && (() => {
+            const interesEstimado = calcularInteresEstimado(
+              abonosDetalle, deudaDetalle?.limite_o_monto_original, deudaDetalle?.tasa_interes
+            )
+            if (interesEstimado === null) return null
+            return (
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
+                Interés pagado hasta la fecha (estimado): <strong style={{ color: 'var(--color-text-secondary)' }}>
+                  {interesEstimado.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {deudaDetalle?.moneda}
+                </strong>
+              </p>
+            )
+          })()}
 
           {loadingAbonos && (
             <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>
