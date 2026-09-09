@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
+import { useAnalisisIA } from '../hooks/useAnalisisIA'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { IconGoal, IconRepeat } from '../components/icons/NavIcons'
 
@@ -231,6 +232,9 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Gasto inusual detectado */}
+            <AnomaliaWidget />
+
             {/* Dinero disponible real */}
             <DisponibleRealWidget year={year} month={month} />
 
@@ -424,6 +428,100 @@ function RecurrentesWidget({ navigate, year, month }) {
 // aún está reservado (sin gastar) dentro de los límites de presupuesto activos. No resta
 // pagos futuros de deudas/metas que todavía no se han registrado — es una aproximación
 // basada solo en compromisos de presupuesto, no en todo el flujo de caja proyectado.
+// Detecta categorías cuyo gasto de este mes supera 1.5x el promedio de los últimos 3 meses
+// (cálculo 100% local, sin IA). La explicación en lenguaje natural es opcional y se pide a
+// Groq solo si la usuaria toca "Explicar" — payload mínimo, solo los 3 números ya agregados.
+function AnomaliaWidget() {
+  const perfil = usePerfil()
+  const [anomalias, setAnomalias] = useState(null) // null=loading, []=nada que mostrar
+
+  useEffect(() => {
+    if (perfil?.rol !== 'administradora') { setAnomalias([]); return }
+    const hoy = new Date()
+    const desdeHistorico = new Date(hoy.getFullYear(), hoy.getMonth() - 3, 1)
+    supabase.from('movimientos').select('categoria_id, monto, moneda, fecha, categorias(nombre)')
+      .eq('tipo', 'gasto').is('deleted_at', null)
+      .gte('fecha', desdeHistorico.toISOString().split('T')[0])
+      .then(({ data }) => {
+        const porCategoria = {} // key catId:moneda -> { actual, previos:[m1,m2,m3], nombre }
+        ;(data || []).forEach(m => {
+          const fechaM = new Date(m.fecha + 'T12:00:00')
+          const mesesAtras = (hoy.getFullYear() - fechaM.getFullYear()) * 12 + (hoy.getMonth() - fechaM.getMonth())
+          if (mesesAtras < 0 || mesesAtras > 3) return
+          const key = `${m.categoria_id}:${m.moneda}`
+          if (!porCategoria[key]) porCategoria[key] = { actual: 0, previos: [0, 0, 0], nombre: m.categorias?.nombre || 'Sin categoría', moneda: m.moneda }
+          if (mesesAtras === 0) porCategoria[key].actual += Number(m.monto)
+          else porCategoria[key].previos[mesesAtras - 1] += Number(m.monto)
+        })
+
+        const lista = []
+        Object.values(porCategoria).forEach(v => {
+          const promedio = v.previos.reduce((a, b) => a + b, 0) / 3
+          if (promedio <= 0) return
+          const diferencia = v.actual - promedio
+          if (v.actual > promedio * 1.5 && diferencia > 300) {
+            lista.push({
+              categoria: v.nombre, moneda: v.moneda,
+              montoActual: Math.round(v.actual * 100) / 100,
+              promedioHistorico: Math.round(promedio * 100) / 100,
+            })
+          }
+        })
+        setAnomalias(lista)
+      })
+  }, [perfil])
+
+  if (!anomalias || anomalias.length === 0) return null
+
+  return (
+    <div className="ds-card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', borderLeft: '3px solid var(--color-warning)' }}>
+      <p className="ds-section-label">Gasto inusual este mes</p>
+      {anomalias.map((a, i) => (
+        <AnomaliaCard key={`${a.categoria}:${a.moneda}`} anomalia={a} primero={i === 0} />
+      ))}
+    </div>
+  )
+}
+
+function AnomaliaCard({ anomalia, primero }) {
+  const { analisis, loading, error, explicarAnomalia } = useAnalisisIA()
+  return (
+    <div style={{ padding: 'var(--space-3) 0', borderTop: primero ? 'none' : '1px solid var(--color-border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+          {anomalia.categoria}
+        </span>
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-warning)', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+          {fmt(anomalia.montoActual, anomalia.moneda)}
+        </span>
+      </div>
+      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+        Promedio habitual: {fmt(anomalia.promedioHistorico, anomalia.moneda)}
+      </p>
+      {!analisis && !loading && (
+        <button
+          onClick={() => explicarAnomalia(anomalia)}
+          className="ds-btn ds-btn-ghost ds-btn-sm"
+          style={{ marginTop: 'var(--space-2)', color: 'var(--color-primary)' }}
+        >
+          ✨ Explicar con IA
+        </button>
+      )}
+      {loading && (
+        <div className="ds-skeleton" style={{ height: 12, borderRadius: 6, width: '80%', marginTop: 'var(--space-2)' }} />
+      )}
+      {error && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-danger)', marginTop: 'var(--space-2)' }}>{error}</p>
+      )}
+      {analisis && !loading && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5, marginTop: 'var(--space-2)' }}>
+          {analisis}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function DisponibleRealWidget({ year, month }) {
   const [porMoneda, setPorMoneda] = useState(null) // null=loading, []=nada que mostrar
 

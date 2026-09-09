@@ -24,25 +24,75 @@ function ultimos12Meses() {
   return meses
 }
 
+// Últimos 6 meses agregados por mes/moneda/categoría — nunca movimientos individuales,
+// para mantener el payload del chat pequeño y no exponer texto libre (concepto/subcategoría).
+async function fetchResumenMensual() {
+  const hoy = new Date()
+  const desde = new Date(hoy.getFullYear(), hoy.getMonth() - 5, 1)
+  const { data } = await supabase
+    .from('movimientos')
+    .select('tipo, monto, moneda, fecha, categorias(nombre)')
+    .is('deleted_at', null)
+    .gte('fecha', desde.toISOString().split('T')[0])
+
+  const porMes = {}
+  ;(data || []).forEach(m => {
+    const clave = m.fecha.slice(0, 7)
+    if (!porMes[clave]) porMes[clave] = { mes: clave, ingresos: {}, gastos: {}, categorias: {} }
+    const b = porMes[clave]
+    if (m.tipo === 'ingreso') {
+      b.ingresos[m.moneda] = (b.ingresos[m.moneda] || 0) + Number(m.monto)
+    } else {
+      b.gastos[m.moneda] = (b.gastos[m.moneda] || 0) + Number(m.monto)
+      const catKey = `${m.categorias?.nombre || 'Sin categoría'}:${m.moneda}`
+      b.categorias[catKey] = (b.categorias[catKey] || 0) + Number(m.monto)
+    }
+  })
+
+  return Object.values(porMes)
+    .map(b => ({
+      mes: b.mes,
+      ingresos: b.ingresos,
+      gastos: b.gastos,
+      gastoPorCategoria: Object.entries(b.categorias).map(([k, v]) => {
+        const [categoria, moneda] = k.split(':')
+        return { categoria, moneda, monto: Math.round(v * 100) / 100 }
+      }),
+    }))
+    .sort((a, b) => a.mes.localeCompare(b.mes))
+}
+
 export default function IAFloatingButton() {
   const perfil = usePerfil()
   const [open, setOpen] = useState(false)
-  // 'seleccion' | 'mensual' | 'general'
+  // 'seleccion' | 'mensual' | 'general' | 'chat'
   const [modo, setModo] = useState('seleccion')
   const [mesSelec, setMesSelec] = useState({ year: CUR_YEAR, month: CUR_MONTH })
-  const { analisis, loading, error, analizar, limpiar } = useAnalisisIA()
+  const [pregunta, setPregunta] = useState('')
+  const [preguntaEnviada, setPreguntaEnviada] = useState(false)
+  const { analisis, loading, error, analizar, preguntar, limpiar } = useAnalisisIA()
 
   if (perfil?.rol !== 'administradora') return null
 
   function abrirSheet() {
     setOpen(true)
     setModo('seleccion')
+    setPregunta('')
+    setPreguntaEnviada(false)
     limpiar()
   }
 
   function cerrarSheet() {
     setOpen(false)
     limpiar()
+  }
+
+  async function enviarPregunta(e) {
+    e.preventDefault()
+    if (!pregunta.trim()) return
+    setPreguntaEnviada(true)
+    const resumenMensual = await fetchResumenMensual()
+    preguntar(pregunta.trim(), resumenMensual)
   }
 
   async function generarMensual(year, month) {
@@ -181,11 +231,51 @@ export default function IAFloatingButton() {
                     Analizar historial completo
                   </button>
                 </div>
+
+                {/* Opción: Chat */}
+                <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
+                  <p style={{ fontWeight: 700, fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)', color: 'var(--color-text-primary)' }}>
+                    💬 Preguntar a tu asesora
+                  </p>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
+                    Ej: "¿cuánto gasté en comida este mes?" o "¿puedo permitirme una compra de RD$5,000?"
+                  </p>
+                  <button
+                    onClick={() => setModo('chat')}
+                    className="ds-btn ds-btn-ghost"
+                    style={{ width: '100%' }}
+                  >
+                    Hacer una pregunta
+                  </button>
+                </div>
               </div>
             )}
 
+            {/* ── CHAT: input ── */}
+            {modo === 'chat' && !preguntaEnviada && (
+              <form onSubmit={enviarPregunta} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <label htmlFor="pregunta-ia" className="ds-label">Tu pregunta</label>
+                <textarea
+                  id="pregunta-ia"
+                  value={pregunta}
+                  onChange={e => setPregunta(e.target.value)}
+                  placeholder="¿Cuánto gasté en transporte los últimos 3 meses?"
+                  className="ds-input"
+                  rows={3}
+                  autoFocus
+                  style={{ resize: 'vertical' }}
+                />
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                  Se responde con base en un resumen de los últimos 6 meses, no con movimientos individuales.
+                </p>
+                <button type="submit" disabled={!pregunta.trim()} className="ds-btn ds-btn-primary" style={{ width: '100%' }}>
+                  Preguntar
+                </button>
+              </form>
+            )}
+
             {/* ── LOADING ── */}
-            {(modo === 'mensual' || modo === 'general') && loading && (
+            {(modo === 'mensual' || modo === 'general' || (modo === 'chat' && preguntaEnviada)) && loading && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 <div className="ds-skeleton" style={{ height: 14, borderRadius: 6, width: '92%' }} />
                 <div className="ds-skeleton" style={{ height: 14, borderRadius: 6, width: '78%' }} />
@@ -207,7 +297,11 @@ export default function IAFloatingButton() {
               }}>
                 {error}
                 <button
-                  onClick={() => modo === 'general' ? generarGeneral() : generarMensual(mesSelec.year, mesSelec.month)}
+                  onClick={() => {
+                    if (modo === 'general') generarGeneral()
+                    else if (modo === 'chat') enviarPregunta({ preventDefault: () => {} })
+                    else generarMensual(mesSelec.year, mesSelec.month)
+                  }}
                   style={{ display: 'block', marginTop: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                 >
                   Reintentar
@@ -226,11 +320,14 @@ export default function IAFloatingButton() {
                   {analisis}
                 </div>
                 <button
-                  onClick={() => { setModo('seleccion'); limpiar() }}
+                  onClick={() => {
+                    if (modo === 'chat') { setPregunta(''); setPreguntaEnviada(false); limpiar() }
+                    else { setModo('seleccion'); limpiar() }
+                  }}
                   className="ds-btn ds-btn-ghost"
                   style={{ width: '100%' }}
                 >
-                  Nuevo análisis
+                  {modo === 'chat' ? 'Nueva pregunta' : 'Nuevo análisis'}
                 </button>
               </>
             )}
