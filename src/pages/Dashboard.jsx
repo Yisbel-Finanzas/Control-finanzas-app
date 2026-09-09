@@ -427,20 +427,35 @@ function BudgetWidget({ navigate }) {
         const now = new Date()
         const desde = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
         const hasta = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+        const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
+        const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth()
+        const desdePrev = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`
+        const hastaPrev = new Date(prevYear, prevMonth, 0).toISOString().split('T')[0]
         Promise.all([
           supabase.from('presupuestos').select('*, categorias(nombre)'),
           supabase.from('movimientos').select('categoria_id, monto, moneda')
             .eq('tipo', 'gasto').is('deleted_at', null).gte('fecha', desde).lte('fecha', hasta),
-        ]).then(([{ data: presp }, { data: movs }]) => {
+          supabase.from('movimientos').select('categoria_id, monto, moneda')
+            .eq('tipo', 'gasto').is('deleted_at', null).gte('fecha', desdePrev).lte('fecha', hastaPrev),
+        ]).then(([{ data: presp }, { data: movs }, { data: movsPrev }]) => {
           if (!presp?.length) { setItems([]); return }
           const gastos = {}
           ;(movs || []).forEach(m => {
             const k = `${m.categoria_id}:${m.moneda}`
             gastos[k] = (gastos[k] || 0) + Number(m.monto)
           })
-          const list = presp.map(p => ({
-            ...p, gastado: gastos[`${p.categoria_id}:${p.moneda}`] || 0,
-          })).sort((a, b) => (b.gastado / Number(b.monto_limite)) - (a.gastado / Number(a.monto_limite)))
+          const gastosPrev = {}
+          ;(movsPrev || []).forEach(m => {
+            const k = `${m.categoria_id}:${m.moneda}`
+            gastosPrev[k] = (gastosPrev[k] || 0) + Number(m.monto)
+          })
+          const list = presp.map(p => {
+            const gastado = gastos[`${p.categoria_id}:${p.moneda}`] || 0
+            const gastadoPrev = gastosPrev[`${p.categoria_id}:${p.moneda}`] || 0
+            const rollover = p.rollover_activo ? Math.max(0, Number(p.monto_limite) - gastadoPrev) : 0
+            const limiteEfectivo = Number(p.monto_limite) + rollover
+            return { ...p, gastado, limiteEfectivo, disponible: limiteEfectivo - gastado }
+          }).sort((a, b) => (b.gastado / b.limiteEfectivo) - (a.gastado / a.limiteEfectivo))
           setItems(list.slice(0, 4))
         })
       })
@@ -458,8 +473,8 @@ function BudgetWidget({ navigate }) {
         </button>
       </div>
       {items.map(p => {
-        const pct = Math.min(100, Math.round((p.gastado / Number(p.monto_limite)) * 100))
-        const excedido = p.gastado > Number(p.monto_limite)
+        const pct = Math.min(100, Math.round((p.gastado / p.limiteEfectivo) * 100))
+        const excedido = p.gastado > p.limiteEfectivo
         const advertencia = !excedido && pct >= 80
         return (
           <div key={p.id} style={{ marginBottom: 'var(--space-3)' }}>
@@ -476,12 +491,15 @@ function BudgetWidget({ navigate }) {
                 </span>
               </div>
             </div>
-            <div className="ds-progress-track">
+            <div className="ds-progress-track" style={{ marginBottom: 'var(--space-1)' }}>
               <div className="ds-progress-fill" style={{
                 width: `${pct}%`,
                 background: excedido ? 'var(--color-danger)' : advertencia ? 'var(--color-warning)' : 'var(--color-primary)',
               }} />
             </div>
+            <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: p.disponible < 0 ? 'var(--color-danger)' : 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+              {p.disponible < 0 ? '−' : ''}{fmt(Math.abs(p.disponible), p.moneda)} disponible
+            </p>
           </div>
         )
       })}
