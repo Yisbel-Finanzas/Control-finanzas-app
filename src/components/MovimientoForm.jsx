@@ -53,6 +53,50 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
     return (count || 0) > 0
   }
 
+  // Ofrece enviar un extra a metas con regla activa de redondeo (gastos) o % de ingreso
+  // (ingresos), en la misma moneda del movimiento. Nunca se hace sin confirmar.
+  async function ofrecerAhorroAutomatico(monto) {
+    const tipoRegla = form.tipo === 'gasto' ? 'redondeo' : 'porcentaje_ingreso'
+    const { data: reglas } = await supabase
+      .from('reglas_ahorro_automatico')
+      .select('id, valor, meta_id, metas_ahorro(nombre, moneda, monto_actual, monto_objetivo, activo)')
+      .eq('tipo', tipoRegla)
+      .eq('activa', true)
+
+    for (const regla of reglas || []) {
+      const meta = regla.metas_ahorro
+      if (!meta || !meta.activo || meta.moneda !== form.moneda) continue
+      if (Number(meta.monto_actual) >= Number(meta.monto_objetivo)) continue
+
+      let extra
+      if (tipoRegla === 'redondeo') {
+        const unidad = Number(regla.valor)
+        extra = Math.ceil(monto / unidad) * unidad - monto
+      } else {
+        extra = monto * Number(regla.valor) / 100
+      }
+      extra = Math.round(extra * 100) / 100
+      if (extra <= 0) continue
+
+      const mensaje = tipoRegla === 'redondeo'
+        ? `Redondeo automático: ¿enviar ${extra.toFixed(2)} ${form.moneda} a "${meta.nombre}"?`
+        : `Ahorro automático (${regla.valor}% de este ingreso): ¿enviar ${extra.toFixed(2)} ${form.moneda} a "${meta.nombre}"?`
+
+      if (!confirm(mensaje)) continue
+
+      await Promise.all([
+        supabase.from('abonos_meta').insert({
+          meta_id: regla.meta_id, monto: extra, fecha: form.fecha,
+          nota: tipoRegla === 'redondeo' ? 'Redondeo automático' : 'Ahorro automático',
+          created_by: perfil?.id,
+        }),
+        supabase.from('metas_ahorro').update({
+          monto_actual: Number(meta.monto_actual) + extra,
+        }).eq('id', regla.meta_id),
+      ])
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setFormError(null)
@@ -82,6 +126,11 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
     } else {
       ({ error } = await supabase.from('movimientos').insert(payload))
     }
+
+    if (!error && !item) {
+      await ofrecerAhorroAutomatico(monto)
+    }
+
     setLoading(false)
     if (!error) onSave()
     else setFormError(error.message)

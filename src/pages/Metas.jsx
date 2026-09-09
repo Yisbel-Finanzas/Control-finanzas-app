@@ -31,7 +31,7 @@ export default function Metas() {
   const [metas, setMetas] = useState([])
   const [cuentas, setCuentas] = useState([])
   const [loading, setLoading] = useState(true)
-  const [sheet, setSheet] = useState(null) // null | 'nueva' | { meta } | { abono, meta }
+  const [sheet, setSheet] = useState(null) // null | 'nueva' | { meta } | { abono, meta } | { reglas, meta }
   const [proyecciones, setProyecciones] = useState({}) // { [meta_id]: { mesesRestantes, sinAbonos } }
   const [toast, setToast] = useState(null) // { msg, type: 'info'|'success'|'danger' }
   const [perfilesMap, setPerfilesMap] = useState({})
@@ -127,6 +127,7 @@ export default function Metas() {
                 onAbono={() => setSheet({ abono: true, meta: m })}
                 onEdit={() => setSheet({ meta: m })}
                 onVerAportes={() => setSheet({ aportes: true, meta: m })}
+                onAutomatizar={() => setSheet({ reglas: true, meta: m })}
                 onArchivar={async () => {
                   await supabase.from('metas_ahorro').update({ activo: false }).eq('id', m.id)
                   fetchMetas()
@@ -203,6 +204,16 @@ export default function Metas() {
         />
       )}
 
+      {/* Sheet: reglas de ahorro automático */}
+      {sheet?.reglas && (
+        <ReglasSheet
+          meta={sheet.meta}
+          perfil={perfil}
+          onClose={() => setSheet(null)}
+          onSave={msg => { setSheet(null); showToast(msg) }}
+        />
+      )}
+
       {/* Toast de hitos */}
       {toast && (
         <div
@@ -238,7 +249,7 @@ export default function Metas() {
   )
 }
 
-function MetaCard({ meta, isAdmin, completada, proyeccion, onAbono, onEdit, onVerAportes, onArchivar }) {
+function MetaCard({ meta, isAdmin, completada, proyeccion, onAbono, onEdit, onVerAportes, onAutomatizar, onArchivar }) {
   const pct = Math.min(100, Math.round((Number(meta.monto_actual) / Number(meta.monto_objetivo)) * 100))
   const dias = diasRestantes(meta.fecha_objetivo)
   const vencida = dias !== null && dias < 0 && !completada
@@ -331,9 +342,14 @@ function MetaCard({ meta, isAdmin, completada, proyeccion, onAbono, onEdit, onVe
             Ver aportes
           </button>
           {!completada && (
-            <button onClick={onAbono} className="ds-btn ds-btn-primary ds-btn-sm">
-              + Abonar
-            </button>
+            <>
+              <button onClick={onAutomatizar} className="ds-btn ds-btn-ghost ds-btn-sm">
+                Automatizar
+              </button>
+              <button onClick={onAbono} className="ds-btn ds-btn-primary ds-btn-sm">
+                + Abonar
+              </button>
+            </>
           )}
           {isAdmin && (
             <button onClick={onArchivar} className="ds-btn ds-btn-ghost ds-btn-sm">
@@ -591,6 +607,104 @@ function AportesSheet({ meta, perfilesMap, onClose }) {
           </p>
         </div>
       ))}
+    </SheetModal>
+  )
+}
+
+function ReglasSheet({ meta, perfil, onClose, onSave }) {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [redondeoActivo, setRedondeoActivo] = useState(false)
+  const [redondeoValor, setRedondeoValor] = useState('50')
+  const [porcentajeActivo, setPorcentajeActivo] = useState(false)
+  const [porcentajeValor, setPorcentajeValor] = useState('10')
+
+  useEffect(() => {
+    supabase.from('reglas_ahorro_automatico').select('*').eq('meta_id', meta.id)
+      .then(({ data }) => {
+        const redondeo = (data || []).find(r => r.tipo === 'redondeo')
+        const porcentaje = (data || []).find(r => r.tipo === 'porcentaje_ingreso')
+        if (redondeo) { setRedondeoActivo(redondeo.activa); setRedondeoValor(String(redondeo.valor)) }
+        if (porcentaje) { setPorcentajeActivo(porcentaje.activa); setPorcentajeValor(String(porcentaje.valor)) }
+        setLoading(false)
+      })
+  }, [meta.id])
+
+  async function guardarRegla(tipo, activa, valorStr) {
+    const valor = parseFloat(valorStr)
+    if (!valor || valor <= 0) return { error: { message: 'Ingresa un valor mayor a 0.' } }
+    return supabase.from('reglas_ahorro_automatico').upsert(
+      { meta_id: meta.id, tipo, valor, activa, created_by: perfil?.id },
+      { onConflict: 'meta_id,tipo' }
+    )
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError(null)
+    setSaving(true)
+    const resultados = await Promise.all([
+      redondeoActivo ? guardarRegla('redondeo', true, redondeoValor) : Promise.resolve({ error: null }),
+      porcentajeActivo ? guardarRegla('porcentaje_ingreso', true, porcentajeValor) : Promise.resolve({ error: null }),
+    ])
+    // Desactivar (no eliminar) las reglas destildadas, para conservar el historial de valores
+    if (!redondeoActivo) await guardarRegla('redondeo', false, redondeoValor || '50')
+    if (!porcentajeActivo) await guardarRegla('porcentaje_ingreso', false, porcentajeValor || '10')
+
+    setSaving(false)
+    const err = resultados.find(r => r.error)?.error
+    if (err) { setError(err.message); return }
+    onSave('Reglas de ahorro automático actualizadas')
+  }
+
+  if (loading) {
+    return (
+      <SheetModal onClose={onClose} title="Automatizar ahorro" subtitle={meta.nombre}>
+        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>Cargando...</p>
+      </SheetModal>
+    )
+  }
+
+  return (
+    <SheetModal onClose={onClose} title="Automatizar ahorro" subtitle={meta.nombre}>
+      <form onSubmit={handleSubmit}>
+        {error && <ErrorBanner msg={error} />}
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={redondeoActivo} onChange={e => setRedondeoActivo(e.target.checked)} />
+          <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Redondear gastos hacia esta meta</span>
+        </label>
+        {redondeoActivo && (
+          <div className="ds-field" style={{ marginBottom: 'var(--space-4)' }}>
+            <label className="ds-label">Redondear al múltiplo de ({meta.moneda})</label>
+            <input type="number" step="1" min="1" value={redondeoValor}
+              onChange={e => setRedondeoValor(e.target.value)} className="ds-input" />
+            <p className="ds-field-hint" style={{ marginTop: 'var(--space-1)' }}>
+              Ej: un gasto de 137 se redondea a 150, y los 13 extra se ofrecen para esta meta.
+            </p>
+          </div>
+        )}
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={porcentajeActivo} onChange={e => setPorcentajeActivo(e.target.checked)} />
+          <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Ahorrar % de cada ingreso hacia esta meta</span>
+        </label>
+        {porcentajeActivo && (
+          <div className="ds-field" style={{ marginBottom: 'var(--space-4)' }}>
+            <label className="ds-label">Porcentaje de cada ingreso</label>
+            <input type="number" step="0.1" min="0.1" max="100" value={porcentajeValor}
+              onChange={e => setPorcentajeValor(e.target.value)} className="ds-input" />
+          </div>
+        )}
+
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)', lineHeight: 1.5 }}>
+          Solo aplica a movimientos en {meta.moneda}. Cada vez que registres un gasto o ingreso que coincida,
+          te preguntaremos si quieres enviar el extra a esta meta — nunca se hace sin confirmar.
+        </p>
+
+        <SheetBotones onClose={onClose} loading={saving} label="Guardar reglas" />
+      </form>
     </SheetModal>
   )
 }
