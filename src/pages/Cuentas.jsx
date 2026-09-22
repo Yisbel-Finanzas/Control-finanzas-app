@@ -168,10 +168,7 @@ export default function Cuentas() {
               </div>
 
               <div className="ds-field">
-                <label htmlFor="saldo_inicial" className="ds-label">
-                  Saldo inicial
-                  <span className="ds-label-hint"> (balance de la cuenta al registrarla, o para corregirlo)</span>
-                </label>
+                <label htmlFor="saldo_inicial" className="ds-label">Saldo inicial</label>
                 <input
                   id="saldo_inicial"
                   type="number"
@@ -182,6 +179,7 @@ export default function Cuentas() {
                   className="ds-input"
                   style={{ fontVariantNumeric: 'tabular-nums' }}
                 />
+                <p className="ds-field-hint">Balance de la cuenta al registrarla, o para corregirlo.</p>
               </div>
 
               <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
