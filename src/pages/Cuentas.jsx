@@ -17,11 +17,12 @@ function ProductoIcon({ producto, size = 20 }) {
   return <IconBank size={size} />
 }
 
-const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP' }
+const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP', saldo_inicial: '0' }
 
 export default function Cuentas() {
   const perfil = usePerfil()
   const [cuentas, setCuentas] = useState([])
+  const [netoPorCuenta, setNetoPorCuenta] = useState({})
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState(null)
@@ -32,16 +33,34 @@ export default function Cuentas() {
 
   async function fetchCuentas() {
     setLoading(true)
-    const { data, error } = await supabase.from('cuentas').select('*').order('producto')
+    const [{ data, error }, { data: movs, error: movsError }] = await Promise.all([
+      supabase.from('cuentas').select('*').order('producto'),
+      supabase.from('movimientos').select('cuenta_id, tipo, monto, moneda').is('deleted_at', null),
+    ])
     if (error) console.error('Cuentas fetch error:', error)
-    setCuentas(data || [])
+    if (movsError) console.error('Movimientos fetch error:', movsError)
+
+    const cuentasData = data || []
+    const monedaPorCuenta = {}
+    cuentasData.forEach(c => { monedaPorCuenta[c.id] = c.moneda })
+
+    const neto = {}
+    ;(movs || []).forEach(m => {
+      if (!m.cuenta_id) return
+      if (m.moneda !== monedaPorCuenta[m.cuenta_id]) return
+      const delta = m.tipo === 'ingreso' ? Number(m.monto) : -Number(m.monto)
+      neto[m.cuenta_id] = (neto[m.cuenta_id] || 0) + delta
+    })
+
+    setCuentas(cuentasData)
+    setNetoPorCuenta(neto)
     setLoading(false)
   }
 
   useEffect(() => { fetchCuentas() }, [])
 
   function openNew()  { setEditItem(null); setForm(emptyForm); setShowForm(true) }
-  function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda || 'DOP' }); setShowForm(true) }
+  function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda || 'DOP', saldo_inicial: String(c.saldo_inicial ?? 0) }); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditItem(null) }
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -52,7 +71,7 @@ export default function Cuentas() {
     // Diagnóstico: verificar rol antes de insertar
     const { data: rolData } = await supabase.rpc('mi_rol')
     console.log('mi_rol() result:', rolData)
-    const payload = { banco: form.banco.trim(), producto: form.producto, moneda: form.moneda }
+    const payload = { banco: form.banco.trim(), producto: form.producto, moneda: form.moneda, saldo_inicial: Number(form.saldo_inicial) || 0 }
     let error
     if (editItem) {
       ({ error } = await supabase.from('cuentas').update(payload).eq('id', editItem.id))
@@ -99,7 +118,7 @@ export default function Cuentas() {
           <div style={{ marginBottom: 'var(--space-6)' }}>
             <p className="ds-section-label">Activas</p>
             {activas.map(c => (
-              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} />
+              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} neto={netoPorCuenta[c.id] || 0} />
             ))}
           </div>
         )}
@@ -108,7 +127,7 @@ export default function Cuentas() {
           <div style={{ marginBottom: 'var(--space-6)' }}>
             <p className="ds-section-label">Inactivas</p>
             {inactivas.map(c => (
-              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} />
+              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} neto={netoPorCuenta[c.id] || 0} />
             ))}
           </div>
         )}
@@ -167,6 +186,21 @@ export default function Cuentas() {
                 </select>
               </div>
 
+              <div className="ds-field">
+                <label htmlFor="saldo_inicial" className="ds-label">Saldo inicial</label>
+                <input
+                  id="saldo_inicial"
+                  type="number"
+                  step="0.01"
+                  value={form.saldo_inicial}
+                  onChange={e => set('saldo_inicial', e.target.value)}
+                  placeholder="0.00"
+                  className="ds-input"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}
+                />
+                <p className="ds-field-hint">Balance de la cuenta al registrarla, o para corregirlo.</p>
+              </div>
+
               <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
                 <button type="button" onClick={closeForm} className="ds-btn ds-btn-ghost" style={{ flex: 1 }}>
                   Cancelar
@@ -183,7 +217,12 @@ export default function Cuentas() {
   )
 }
 
-function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete }) {
+function fmt(monto, moneda) {
+  return Number(monto).toLocaleString('es-DO', { minimumFractionDigits: 2 }) + ' ' + moneda
+}
+
+function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete, neto }) {
+  const balance = Number(c.saldo_inicial || 0) + neto
   return (
     <div
       className="ds-card"
@@ -206,6 +245,13 @@ function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete }) {
         <div>
           <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>{c.banco}</p>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{c.producto} · {c.moneda}</p>
+          <p style={{
+            fontSize: 'var(--text-sm)', fontWeight: 700, marginTop: 'var(--space-1)',
+            fontVariantNumeric: 'tabular-nums',
+            color: balance < 0 ? 'var(--color-danger)' : 'var(--color-text-primary)',
+          }}>
+            {fmt(balance, c.moneda)}
+          </p>
         </div>
       </div>
 
