@@ -118,7 +118,7 @@ export default function Cuentas() {
           <div style={{ marginBottom: 'var(--space-6)' }}>
             <p className="ds-section-label">Activas</p>
             {activas.map(c => (
-              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} />
+              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} neto={netoPorCuenta[c.id] || 0} />
             ))}
           </div>
         )}
@@ -127,7 +127,7 @@ export default function Cuentas() {
           <div style={{ marginBottom: 'var(--space-6)' }}>
             <p className="ds-section-label">Inactivas</p>
             {inactivas.map(c => (
-              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} />
+              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} neto={netoPorCuenta[c.id] || 0} />
             ))}
           </div>
         )}
@@ -217,7 +217,12 @@ export default function Cuentas() {
   )
 }
 
-function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete }) {
+function fmt(monto, moneda) {
+  return new Intl.NumberFormat('es-DO', { style: 'currency', currency: moneda }).format(monto)
+}
+
+function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete, neto }) {
+  const balance = Number(c.saldo_inicial || 0) + neto
   return (
     <div
       className="ds-card"
@@ -240,6 +245,13 @@ function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete }) {
         <div>
           <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>{c.banco}</p>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{c.producto} · {c.moneda}</p>
+          <p style={{
+            fontSize: 'var(--text-sm)', fontWeight: 700, marginTop: 'var(--space-1)',
+            fontVariantNumeric: 'tabular-nums',
+            color: balance < 0 ? 'var(--color-danger)' : 'var(--color-text-primary)',
+          }}>
+            {fmt(balance, c.moneda)}
+          </p>
         </div>
       </div>
 
