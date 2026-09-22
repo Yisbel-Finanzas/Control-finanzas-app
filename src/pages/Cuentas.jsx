@@ -22,6 +22,7 @@ const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP', sald
 export default function Cuentas() {
   const perfil = usePerfil()
   const [cuentas, setCuentas] = useState([])
+  const [netoPorCuenta, setNetoPorCuenta] = useState({})
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState(null)
@@ -32,9 +33,27 @@ export default function Cuentas() {
 
   async function fetchCuentas() {
     setLoading(true)
-    const { data, error } = await supabase.from('cuentas').select('*').order('producto')
+    const [{ data, error }, { data: movs, error: movsError }] = await Promise.all([
+      supabase.from('cuentas').select('*').order('producto'),
+      supabase.from('movimientos').select('cuenta_id, tipo, monto, moneda').is('deleted_at', null),
+    ])
     if (error) console.error('Cuentas fetch error:', error)
-    setCuentas(data || [])
+    if (movsError) console.error('Movimientos fetch error:', movsError)
+
+    const cuentasData = data || []
+    const monedaPorCuenta = {}
+    cuentasData.forEach(c => { monedaPorCuenta[c.id] = c.moneda })
+
+    const neto = {}
+    ;(movs || []).forEach(m => {
+      if (!m.cuenta_id) return
+      if (m.moneda !== monedaPorCuenta[m.cuenta_id]) return
+      const delta = m.tipo === 'ingreso' ? Number(m.monto) : -Number(m.monto)
+      neto[m.cuenta_id] = (neto[m.cuenta_id] || 0) + delta
+    })
+
+    setCuentas(cuentasData)
+    setNetoPorCuenta(neto)
     setLoading(false)
   }
 
