@@ -17,7 +17,7 @@ function ProductoIcon({ producto, size = 20 }) {
   return <IconBank size={size} />
 }
 
-const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP' }
+const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP', saldo_inicial: '0' }
 
 export default function Cuentas() {
   const perfil = usePerfil()
@@ -41,7 +41,7 @@ export default function Cuentas() {
   useEffect(() => { fetchCuentas() }, [])
 
   function openNew()  { setEditItem(null); setForm(emptyForm); setShowForm(true) }
-  function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda || 'DOP' }); setShowForm(true) }
+  function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda || 'DOP', saldo_inicial: String(c.saldo_inicial ?? 0) }); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditItem(null) }
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -52,7 +52,7 @@ export default function Cuentas() {
     // Diagnóstico: verificar rol antes de insertar
     const { data: rolData } = await supabase.rpc('mi_rol')
     console.log('mi_rol() result:', rolData)
-    const payload = { banco: form.banco.trim(), producto: form.producto, moneda: form.moneda }
+    const payload = { banco: form.banco.trim(), producto: form.producto, moneda: form.moneda, saldo_inicial: Number(form.saldo_inicial) || 0 }
     let error
     if (editItem) {
       ({ error } = await supabase.from('cuentas').update(payload).eq('id', editItem.id))
