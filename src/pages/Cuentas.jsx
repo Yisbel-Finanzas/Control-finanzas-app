@@ -218,7 +218,7 @@ export default function Cuentas() {
 }
 
 function fmt(monto, moneda) {
-  return new Intl.NumberFormat('es-DO', { style: 'currency', currency: moneda }).format(monto)
+  return Number(monto).toLocaleString('es-DO', { minimumFractionDigits: 2 }) + ' ' + moneda
 }
 
 function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete, neto }) {
