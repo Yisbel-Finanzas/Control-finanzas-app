@@ -167,6 +167,23 @@ export default function Cuentas() {
                 </select>
               </div>
 
+              <div className="ds-field">
+                <label htmlFor="saldo_inicial" className="ds-label">
+                  Saldo inicial
+                  <span className="ds-label-hint"> (balance de la cuenta al registrarla, o para corregirlo)</span>
+                </label>
+                <input
+                  id="saldo_inicial"
+                  type="number"
+                  step="0.01"
+                  value={form.saldo_inicial}
+                  onChange={e => set('saldo_inicial', e.target.value)}
+                  placeholder="0.00"
+                  className="ds-input"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}
+                />
+              </div>
+
               <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
                 <button type="button" onClick={closeForm} className="ds-btn ds-btn-ghost" style={{ flex: 1 }}>
                   Cancelar
