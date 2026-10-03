@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import { IconList, IconPlus } from '../components/icons/NavIcons'
 
-const emptyDeuda = { nombre: '', tipo: 'prestamo', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '' }
-const emptyAbono = { monto: '', moneda: 'DOP', fecha: new Date().toISOString().split('T')[0], cuenta_origen_id: '', categoria_id: '' }
+const emptyDeuda = { nombre: '', tipo: 'prestamo', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '', cuota_fija: '', cuotas_totales: '' }
+const emptyAbono = { monto: '', interes: '', moneda: 'DOP', fecha: new Date().toISOString().split('T')[0], cuenta_origen_id: '', categoria_id: '' }
 
 const MILESTONES = [25, 50, 75, 100]
 
@@ -14,32 +14,6 @@ function mesesTranscurridos(desde, hasta) {
   const b = new Date(hasta + 'T12:00:00')
   const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
   return Math.max(1, meses)
-}
-
-// Estima cuánto de lo abonado hasta ahora fue interés vs. capital, reconstruyendo el saldo
-// abono por abono desde el monto original. Es una aproximación: asume que el saldo antes del
-// primer abono registrado es `limite_o_monto_original` y que el interés se acumula linealmente
-// entre fechas de abono — no reemplaza la tabla de amortización real del banco.
-function calcularInteresEstimado(abonos, montoOriginal, tasaAnualPct) {
-  if (!montoOriginal || montoOriginal <= 0 || abonos.length === 0) return null
-  const tasaMensual = (Number(tasaAnualPct) || 0) / 100 / 12
-  const ordenados = [...abonos].sort((a, b) => a.fecha.localeCompare(b.fecha))
-  let saldo = Number(montoOriginal)
-  let interesTotal = 0
-  let fechaAnterior = null
-  for (const a of ordenados) {
-    if (fechaAnterior) {
-      const dias = (new Date(a.fecha + 'T12:00:00') - new Date(fechaAnterior + 'T12:00:00')) / 86400000
-      const meses = dias / 30.4368
-      const interesPeriodo = saldo * tasaMensual * meses
-      interesTotal += interesPeriodo
-      saldo -= (Number(a.monto) - interesPeriodo)
-    } else {
-      saldo -= Number(a.monto)
-    }
-    fechaAnterior = a.fecha
-  }
-  return Math.max(0, interesTotal)
 }
 
 // Simulación simple de amortización: aplica interés mensual sobre el saldo y resta el pago,
@@ -118,13 +92,13 @@ export default function Deudas() {
     const ids = deudas.map(d => d.id)
     supabase
       .from('abonos_deuda')
-      .select('deuda_id, monto, fecha')
+      .select('deuda_id, monto, interes, fecha')
       .in('deuda_id', ids)
       .then(({ data }) => {
         const porDeuda = {}
         for (const a of data || []) {
           if (!porDeuda[a.deuda_id]) porDeuda[a.deuda_id] = { total: 0, primeraFecha: a.fecha }
-          porDeuda[a.deuda_id].total += Number(a.monto)
+          porDeuda[a.deuda_id].total += Number(a.monto) - Number(a.interes || 0)
           if (a.fecha < porDeuda[a.deuda_id].primeraFecha) porDeuda[a.deuda_id].primeraFecha = a.fecha
         }
         const hoy = new Date().toISOString().split('T')[0]
@@ -152,6 +126,8 @@ export default function Deudas() {
       saldo_actual: d.saldo_actual ?? '',
       limite_o_monto_original: d.limite_o_monto_original ?? '',
       tasa_interes: d.tasa_interes ?? '',
+      cuota_fija: d.cuota_fija ?? '',
+      cuotas_totales: d.cuotas_totales ?? '',
     })
     setShowDeudaForm(true)
   }
@@ -169,7 +145,7 @@ export default function Deudas() {
     setLoadingAbonos(true)
     const { data } = await supabase
       .from('abonos_deuda')
-      .select('id, monto, moneda, fecha, cuentas(banco, producto)')
+      .select('id, monto, interes, moneda, fecha, cuentas(banco, producto)')
       .eq('deuda_id', d.id)
       .order('fecha', { ascending: false })
     setAbonosDetalle(data || [])
@@ -189,6 +165,8 @@ export default function Deudas() {
       saldo_actual: formDeuda.saldo_actual !== '' ? parseFloat(formDeuda.saldo_actual) : null,
       limite_o_monto_original: formDeuda.limite_o_monto_original !== '' ? parseFloat(formDeuda.limite_o_monto_original) : null,
       tasa_interes: formDeuda.tasa_interes !== '' ? parseFloat(formDeuda.tasa_interes) : null,
+      cuota_fija: formDeuda.tipo === 'financiera_cuota_fija' && formDeuda.cuota_fija !== '' ? parseFloat(formDeuda.cuota_fija) : null,
+      cuotas_totales: formDeuda.tipo === 'financiera_cuota_fija' && formDeuda.cuotas_totales !== '' ? parseInt(formDeuda.cuotas_totales, 10) : null,
       fecha_ultima_actualizacion: new Date().toISOString().split('T')[0],
       activo: true,
     }
@@ -210,14 +188,21 @@ export default function Deudas() {
       setAbonoError('Selecciona una categoría para el gasto.')
       return
     }
+    const monto = parseFloat(formAbono.monto)
+    const interes = formAbono.interes !== '' ? parseFloat(formAbono.interes) : 0
+    const capital = monto - interes
+    if (interes < 0 || capital < 0) {
+      setAbonoError('El interés no puede ser mayor que el monto pagado.')
+      return
+    }
     setAbonoError(null)
     setSaving(true)
-    const monto = parseFloat(formAbono.monto)
-    const nuevoSaldo = (deudaParaAbonar.saldo_actual || 0) - monto
+    const nuevoSaldo = (deudaParaAbonar.saldo_actual || 0) - capital
     const results = await Promise.all([
       supabase.from('abonos_deuda').insert({
         deuda_id: deudaParaAbonar.id,
         monto,
+        interes,
         moneda: formAbono.moneda,
         fecha: formAbono.fecha,
         cuenta_origen_id: formAbono.cuenta_origen_id || null,
@@ -400,22 +385,34 @@ export default function Deudas() {
       {/* Modal detalle de abonos */}
       {showDetalle && (
         <SheetModal onClose={() => setShowDetalle(false)} title="Historial de abonos" subtitle={deudaDetalle?.nombre}>
-          <SimuladorPagoExtra
-            deuda={deudaDetalle}
-            proyeccion={proyecciones[deudaDetalle?.id]}
-            extra={extraSimulado}
-            onExtraChange={setExtraSimulado}
-          />
+          {deudaDetalle?.tipo === 'financiera_cuota_fija' ? (
+            <div style={{
+              background: 'var(--color-bg)', borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)',
+              fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5,
+            }}>
+              Cuota fija: {deudaDetalle.cuota_fija
+                ? `${Number(deudaDetalle.cuota_fija).toLocaleString('es-DO', { minimumFractionDigits: 2 })} ${deudaDetalle.moneda}/mes`
+                : 'no especificada'}
+              {deudaDetalle.cuotas_totales ? ` durante ${deudaDetalle.cuotas_totales} cuotas` : ''}.
+              Los abonos a capital no reducen esta cuota — solo el saldo pendiente.
+            </div>
+          ) : (
+            <SimuladorPagoExtra
+              deuda={deudaDetalle}
+              proyeccion={proyecciones[deudaDetalle?.id]}
+              extra={extraSimulado}
+              onExtraChange={setExtraSimulado}
+            />
+          )}
 
-          {!loadingAbonos && abonosDetalle.length > 0 && (() => {
-            const interesEstimado = calcularInteresEstimado(
-              abonosDetalle, deudaDetalle?.limite_o_monto_original, deudaDetalle?.tasa_interes
-            )
-            if (interesEstimado === null) return null
+          {deudaDetalle?.tipo !== 'financiera_cuota_fija' && !loadingAbonos && abonosDetalle.length > 0 && (() => {
+            const interesTotal = abonosDetalle.reduce((s, a) => s + Number(a.interes || 0), 0)
+            if (interesTotal <= 0) return null
             return (
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
-                Interés pagado hasta la fecha (estimado): <strong style={{ color: 'var(--color-text-secondary)' }}>
-                  {interesEstimado.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {deudaDetalle?.moneda}
+                Interés pagado hasta la fecha (registrado en tus abonos): <strong style={{ color: 'var(--color-text-secondary)' }}>
+                  {interesTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {deudaDetalle?.moneda}
                 </strong>
               </p>
             )
@@ -447,6 +444,12 @@ export default function Deudas() {
                     {a.cuentas.banco}{a.cuentas.producto !== a.cuentas.banco ? ` · ${a.cuentas.producto}` : ''}
                   </p>
                 )}
+                {Number(a.interes || 0) > 0 && (
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                    Capital: {(Number(a.monto) - Number(a.interes)).toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                    {' · '}Interés: {Number(a.interes).toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                  </p>
+                )}
               </div>
               <p style={{ fontWeight: 700, color: 'var(--color-success)', fontVariantNumeric: 'tabular-nums' }}>
                 {Number(a.monto).toLocaleString('es-DO', { minimumFractionDigits: 2 })} {a.moneda}
@@ -470,12 +473,12 @@ export default function Deudas() {
 
             <div className="ds-field">
               <p className="ds-label" id="tipo-deuda-label">Tipo</p>
-              <div role="group" aria-labelledby="tipo-deuda-label" style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                {[['prestamo', 'Préstamo'], ['tarjeta_credito', 'Tarjeta de crédito']].map(([val, label]) => (
+              <div role="group" aria-labelledby="tipo-deuda-label" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                {[['prestamo', 'Préstamo'], ['tarjeta_credito', 'Tarjeta de crédito'], ['financiera_cuota_fija', 'Financiera (cuota fija)']].map(([val, label]) => (
                   <button key={val} type="button" aria-pressed={formDeuda.tipo === val}
                     onClick={() => setD('tipo', val)}
                     style={{
-                      flex: 1, padding: 'var(--space-3)',
+                      flex: '1 1 30%', padding: 'var(--space-3)',
                       borderRadius: 'var(--radius-md)',
                       border: `2px solid ${formDeuda.tipo === val ? 'var(--color-primary)' : 'var(--color-border)'}`,
                       background: formDeuda.tipo === val ? 'var(--color-primary-light)' : 'var(--color-surface)',
@@ -484,6 +487,11 @@ export default function Deudas() {
                     }}>{label}</button>
                 ))}
               </div>
+              {formDeuda.tipo === 'financiera_cuota_fija' && (
+                <p className="ds-field-hint" style={{ marginTop: 'var(--space-2)' }}>
+                  Cuota mensual fija durante todo el plazo — no baja aunque abones a capital.
+                </p>
+              )}
             </div>
 
             <div className="ds-field">
@@ -531,6 +539,25 @@ export default function Deudas() {
                 placeholder="Ej: 36.00" className="ds-input" />
             </div>
 
+            {formDeuda.tipo === 'financiera_cuota_fija' && (
+              <div className="ds-field" style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="deuda-cuota-fija" className="ds-label">Cuota fija mensual</label>
+                  <input id="deuda-cuota-fija" type="number" step="0.01" min="0.01"
+                    value={formDeuda.cuota_fija}
+                    onChange={e => setD('cuota_fija', e.target.value)}
+                    placeholder="0.00" required className="ds-input" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="deuda-cuotas-totales" className="ds-label">Cantidad de cuotas</label>
+                  <input id="deuda-cuotas-totales" type="number" step="1" min="1"
+                    value={formDeuda.cuotas_totales}
+                    onChange={e => setD('cuotas_totales', e.target.value)}
+                    placeholder="Ej: 24" required className="ds-input" />
+                </div>
+              </div>
+            )}
+
             <SheetBotones onCancel={() => setShowDeudaForm(false)} saving={saving}
               label={editDeuda ? 'Guardar cambios' : 'Registrar deuda'} />
           </form>
@@ -572,6 +599,26 @@ export default function Deudas() {
                   <option value="USD">USD</option>
                 </select>
               </div>
+            </div>
+
+            <div className="ds-field">
+              <label htmlFor="abono-interes" className="ds-label">
+                De ese monto, ¿cuánto es interés? <span className="ds-label-hint">(opcional)</span>
+              </label>
+              <input id="abono-interes" type="number" step="0.01" min="0"
+                value={formAbono.interes}
+                onChange={e => setA('interes', e.target.value)}
+                placeholder="0.00" className="ds-input" />
+              <p className="ds-field-hint">
+                Déjalo vacío si este pago es 100% abono a capital. Si estás pagando tu cuota
+                regular (capital + interés), indica aquí la parte de interés — el saldo de la
+                deuda solo bajará por la diferencia (el capital).
+                {formAbono.monto !== '' && formAbono.interes !== '' && (
+                  <> Capital de este pago: <strong>
+                    {(parseFloat(formAbono.monto || 0) - parseFloat(formAbono.interes || 0)).toLocaleString('es-DO', { minimumFractionDigits: 2 })} {formAbono.moneda}
+                  </strong>.</>
+                )}
+              </p>
             </div>
 
             <div className="ds-field">
@@ -621,8 +668,24 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDeta
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
           <div>
-            <p style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--color-text-primary)' }}>{d.nombre}</p>
-            {d.tasa_interes && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <p style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--color-text-primary)' }}>{d.nombre}</p>
+              {d.tipo === 'financiera_cuota_fija' && (
+                <span className="ds-badge ds-badge-primary">Cuota fija</span>
+              )}
+            </div>
+            {d.tipo === 'financiera_cuota_fija' ? (() => {
+              const detalle = [
+                d.cuota_fija ? `${Number(d.cuota_fija).toLocaleString('es-DO', { minimumFractionDigits: 2 })} ${d.moneda}/mes` : null,
+                d.cuotas_totales ? `${d.cuotas_totales} cuotas` : null,
+                d.tasa_interes ? `${d.tasa_interes}% fijo` : null,
+              ].filter(Boolean).join(' · ')
+              return detalle && (
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                  {detalle}
+                </p>
+              )
+            })() : d.tasa_interes && (
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                 {d.tasa_interes}% interés anual
               </p>
@@ -660,7 +723,7 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDeta
           </p>
         )}
 
-        {proyeccion && (
+        {d.tipo !== 'financiera_cuota_fija' && proyeccion && (
           <p style={{ fontSize: 'var(--text-xs)', color: proyeccion.sinAbonos ? 'var(--color-text-muted)' : 'var(--color-primary)', fontWeight: 600, marginBottom: 'var(--space-1)' }}>
             {proyeccion.sinAbonos
               ? 'Registra abonos para ver una proyección'
