@@ -212,6 +212,7 @@ export default function Cuentas() {
                     placeholder="0.00"
                     required
                     className="ds-input"
+                    style={{ fontVariantNumeric: 'tabular-nums' }}
                   />
                   <p className="ds-field-hint">
                     El tope máximo de la tarjeta — no cambia con el uso. Se usa para la barra de disponible/usado y para que un gasto no pueda registrarse por encima de lo disponible.
@@ -231,6 +232,7 @@ export default function Cuentas() {
                   onChange={e => set('saldo_inicial', e.target.value)}
                   placeholder="0.00"
                   className="ds-input"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}
                 />
                 <p className="ds-field-hint">
                   {form.producto === 'Tarjeta de crédito'
