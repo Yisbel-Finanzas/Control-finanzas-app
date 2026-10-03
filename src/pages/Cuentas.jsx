@@ -44,7 +44,7 @@ export default function Cuentas() {
     const [{ data, error }, { data: movs, error: movsError }, { data: transfs, error: transfsError }] = await Promise.all([
       supabase.from('cuentas').select('*').order('producto'),
       supabase.from('movimientos').select('cuenta_id, tipo, monto, moneda').is('deleted_at', null),
-      supabase.from('transferencias').select('cuenta_origen_id, cuenta_destino_id, monto'),
+      supabase.from('transferencias').select('cuenta_origen_id, cuenta_destino_id, monto, moneda'),
     ])
     if (error) console.error('Cuentas fetch error:', error)
     if (movsError) console.error('Movimientos fetch error:', movsError)
@@ -62,6 +62,7 @@ export default function Cuentas() {
       neto[m.cuenta_id] = (neto[m.cuenta_id] || 0) + delta
     })
     ;(transfs || []).forEach(t => {
+      if (t.moneda !== monedaPorCuenta[t.cuenta_origen_id] || t.moneda !== monedaPorCuenta[t.cuenta_destino_id]) return
       neto[t.cuenta_origen_id] = (neto[t.cuenta_origen_id] || 0) - Number(t.monto)
       neto[t.cuenta_destino_id] = (neto[t.cuenta_destino_id] || 0) + Number(t.monto)
     })

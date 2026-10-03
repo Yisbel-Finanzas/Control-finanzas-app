@@ -122,7 +122,7 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
 
     const [{ data: movs }, { data: transfs }] = await Promise.all([
       movsQuery,
-      supabase.from('transferencias').select('monto, cuenta_origen_id, cuenta_destino_id')
+      supabase.from('transferencias').select('monto, moneda, cuenta_origen_id, cuenta_destino_id')
         .or(`cuenta_origen_id.eq.${cuentaId},cuenta_destino_id.eq.${cuentaId}`),
     ])
 
@@ -132,6 +132,7 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
       neto += (m.tipo === 'ingreso' ? 1 : -1) * Number(m.monto)
     }
     for (const t of transfs || []) {
+      if (t.moneda !== cuenta.moneda) continue
       if (t.cuenta_origen_id === cuentaId) neto -= Number(t.monto)
       if (t.cuenta_destino_id === cuentaId) neto += Number(t.monto)
     }
