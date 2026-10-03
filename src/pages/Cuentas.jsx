@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
-import { IconBank, IconCash, IconCreditCard, IconX, IconPlus } from '../components/icons/NavIcons'
+import { IconBank, IconCash, IconCreditCard, IconX, IconPlus, IconRepeat } from '../components/icons/NavIcons'
 
 const PRODUCTOS = [
   'Efectivo',
@@ -18,6 +18,7 @@ function ProductoIcon({ producto, size = 20 }) {
 }
 
 const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP', saldo_inicial: '', limite_credito: '' }
+const emptyTransferencia = { cuenta_origen_id: '', cuenta_destino_id: '', monto: '', fecha: new Date().toISOString().split('T')[0], concepto: '' }
 
 export default function Cuentas() {
   const perfil = usePerfil()
@@ -28,6 +29,13 @@ export default function Cuentas() {
   const [editItem, setEditItem] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [showTransferForm, setShowTransferForm] = useState(false)
+  const [formTransferencia, setFormTransferencia] = useState(emptyTransferencia)
+  const [transferError, setTransferError] = useState(null)
+  const [savingTransfer, setSavingTransfer] = useState(false)
+  const [showHistorial, setShowHistorial] = useState(false)
+  const [transferencias, setTransferencias] = useState([])
+  const [loadingHistorial, setLoadingHistorial] = useState(false)
 
   const isAdmin = perfil?.rol === 'administradora'
 
@@ -64,6 +72,59 @@ export default function Cuentas() {
   }
 
   useEffect(() => { fetchCuentas() }, [])
+
+  function openTransferir() {
+    setFormTransferencia(emptyTransferencia)
+    setTransferError(null)
+    setShowTransferForm(true)
+  }
+  const setT = (k, v) => setFormTransferencia(f => ({ ...f, [k]: v }))
+
+  async function handleSubmitTransferencia(e) {
+    e.preventDefault()
+    const { cuenta_origen_id, cuenta_destino_id, monto, fecha, concepto } = formTransferencia
+    if (!cuenta_origen_id || !cuenta_destino_id) {
+      setTransferError('Selecciona cuenta de origen y destino.')
+      return
+    }
+    if (cuenta_origen_id === cuenta_destino_id) {
+      setTransferError('La cuenta de origen y destino no pueden ser la misma.')
+      return
+    }
+    const origen = cuentas.find(c => c.id === cuenta_origen_id)
+    const destino = cuentas.find(c => c.id === cuenta_destino_id)
+    if (origen?.moneda !== destino?.moneda) {
+      setTransferError('Ambas cuentas deben tener la misma moneda.')
+      return
+    }
+    setTransferError(null)
+    setSavingTransfer(true)
+    const { error } = await supabase.from('transferencias').insert({
+      cuenta_origen_id,
+      cuenta_destino_id,
+      monto: parseFloat(monto),
+      moneda: origen.moneda,
+      fecha,
+      concepto: concepto.trim() || null,
+      created_by: perfil?.id,
+    })
+    setSavingTransfer(false)
+    if (error) { alert('Error al registrar transferencia: ' + error.message); return }
+    setShowTransferForm(false)
+    await fetchCuentas()
+  }
+
+  async function openHistorial() {
+    setShowHistorial(true)
+    setLoadingHistorial(true)
+    const { data } = await supabase
+      .from('transferencias')
+      .select('id, monto, moneda, fecha, concepto, origen:cuenta_origen_id(banco, producto), destino:cuenta_destino_id(banco, producto)')
+      .order('fecha', { ascending: false })
+      .limit(50)
+    setTransferencias(data || [])
+    setLoadingHistorial(false)
+  }
 
   function openNew()  { setEditItem(null); setForm(emptyForm); setShowForm(true) }
   function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda || 'DOP', saldo_inicial: c.saldo_inicial != null ? String(c.saldo_inicial) : '', limite_credito: c.limite_credito != null ? String(c.limite_credito) : '' }); setShowForm(true) }
@@ -111,6 +172,12 @@ export default function Cuentas() {
   const activas   = cuentas.filter(c => c.activo)
   const inactivas = cuentas.filter(c => !c.activo)
 
+  const totalPorMoneda = activas.reduce((acc, c) => {
+    const balance = Number(c.saldo_inicial || 0) + (netoPorCuenta[c.id] || 0)
+    acc[c.moneda] = (acc[c.moneda] || 0) + balance
+    return acc
+  }, {})
+
   return (
     <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto' }}>
       <div className="ds-page-header">
@@ -121,6 +188,45 @@ export default function Cuentas() {
       </div>
 
       <div style={{ padding: 'var(--space-4)' }}>
+        {!loading && Object.keys(totalPorMoneda).length > 0 && (
+          <div style={{
+            background: 'var(--color-success-light)',
+            border: '1px solid #bbf0d0',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-4)',
+            marginBottom: 'var(--space-4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span className="ds-section-label" style={{ color: 'var(--color-success)', margin: 0 }}>Balance disponible</span>
+            <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+              {Object.entries(totalPorMoneda).map(([moneda, total]) => (
+                <span key={moneda} style={{
+                  fontWeight: 700, fontSize: 'var(--text-base)', fontVariantNumeric: 'tabular-nums',
+                  color: total < 0 ? 'var(--color-danger)' : 'var(--color-success)',
+                }}>
+                  {fmt(total, moneda)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!loading && activas.length >= 2 && (
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+            <button onClick={openTransferir} className="ds-btn ds-btn-sm" style={{
+              flex: 2, background: 'var(--color-primary-light)',
+              border: '1px solid var(--color-primary-muted)',
+              color: 'var(--color-primary)', fontWeight: 600,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)',
+            }}>
+              <IconRepeat size={16} /> Transferir entre cuentas
+            </button>
+            <button onClick={openHistorial} className="ds-btn ds-btn-ghost ds-btn-sm" style={{ flex: 1 }}>
+              Historial
+            </button>
+          </div>
+        )}
+
         {loading && (
           <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-10)' }}>
             Cargando...
@@ -250,6 +356,143 @@ export default function Cuentas() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showTransferForm && (
+        <div className="ds-sheet-overlay" onClick={() => setShowTransferForm(false)}>
+          <div
+            className="ds-sheet"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-label="Transferir entre cuentas"
+            aria-modal="true"
+          >
+            <div className="ds-sheet-handle" />
+            <h2>Transferir entre cuentas</h2>
+
+            <form onSubmit={handleSubmitTransferencia}>
+              {transferError && (
+                <div role="alert" style={{
+                  background: 'var(--color-danger-light)', color: 'var(--color-danger)',
+                  borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)',
+                  fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)', lineHeight: 1.5,
+                }}>
+                  {transferError}
+                </div>
+              )}
+
+              <div className="ds-field">
+                <label htmlFor="transf-origen" className="ds-label">Desde</label>
+                <select id="transf-origen" value={formTransferencia.cuenta_origen_id}
+                  onChange={e => setT('cuenta_origen_id', e.target.value)} className="ds-input" required>
+                  <option value="">Seleccionar cuenta de origen…</option>
+                  {activas.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.banco}{c.producto !== c.banco ? ` · ${c.producto}` : ''} ({c.moneda})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="ds-field">
+                <label htmlFor="transf-destino" className="ds-label">Hacia</label>
+                <select id="transf-destino" value={formTransferencia.cuenta_destino_id}
+                  onChange={e => setT('cuenta_destino_id', e.target.value)} className="ds-input" required>
+                  <option value="">Seleccionar cuenta de destino…</option>
+                  {activas.filter(c => c.id !== formTransferencia.cuenta_origen_id).map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.banco}{c.producto !== c.banco ? ` · ${c.producto}` : ''} ({c.moneda})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="ds-field" style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                <div style={{ flex: 2 }}>
+                  <label htmlFor="transf-monto" className="ds-label">Monto</label>
+                  <input id="transf-monto" type="number" step="0.01" min="0.01"
+                    value={formTransferencia.monto}
+                    onChange={e => setT('monto', e.target.value)}
+                    required placeholder="0.00" className="ds-input" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="transf-fecha" className="ds-label">Fecha</label>
+                  <input id="transf-fecha" type="date" value={formTransferencia.fecha}
+                    onChange={e => setT('fecha', e.target.value)} required className="ds-input" />
+                </div>
+              </div>
+
+              <div className="ds-field">
+                <label htmlFor="transf-concepto" className="ds-label">
+                  Nota <span className="ds-label-hint">(opcional)</span>
+                </label>
+                <input id="transf-concepto" type="text" value={formTransferencia.concepto}
+                  onChange={e => setT('concepto', e.target.value)}
+                  placeholder="Ej: Ahorro del mes" className="ds-input" />
+              </div>
+
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
+                No se registra como ingreso ni gasto — solo mueve el balance de una cuenta a otra.
+              </p>
+
+              <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                <button type="button" onClick={() => setShowTransferForm(false)} className="ds-btn ds-btn-ghost" style={{ flex: 1 }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingTransfer} className="ds-btn ds-btn-primary" style={{ flex: 2 }}>
+                  {savingTransfer ? 'Guardando...' : 'Transferir'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showHistorial && (
+        <div className="ds-sheet-overlay" onClick={() => setShowHistorial(false)}>
+          <div
+            className="ds-sheet"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-label="Historial de transferencias"
+            aria-modal="true"
+          >
+            <div className="ds-sheet-handle" />
+            <h2 style={{ marginBottom: 'var(--space-5)' }}>Historial de transferencias</h2>
+
+            {loadingHistorial && (
+              <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>
+                Cargando...
+              </p>
+            )}
+
+            {!loadingHistorial && transferencias.length === 0 && (
+              <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--space-6)' }}>
+                Todavía no se han registrado transferencias.
+              </p>
+            )}
+
+            {!loadingHistorial && transferencias.map(t => (
+              <div key={t.id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: 'var(--space-3) 0', borderBottom: '1px solid var(--color-border)',
+              }}>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>
+                    {t.origen?.banco} → {t.destino?.banco}
+                  </p>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                    {new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {t.concepto ? ` · ${t.concepto}` : ''}
+                  </p>
+                </div>
+                <p style={{ fontWeight: 700, color: 'var(--color-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(t.monto, t.moneda)}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}
