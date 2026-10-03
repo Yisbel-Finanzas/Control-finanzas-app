@@ -237,7 +237,7 @@ export default function Cuentas() {
           <div style={{ marginBottom: 'var(--space-6)' }}>
             <p className="ds-section-label">Activas</p>
             {activas.map(c => (
-              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} neto={netoPorCuenta[c.id] || 0} />
+              <CuentaCard key={c.id} c={c} balance={Number(c.saldo_inicial || 0) + (netoPorCuenta[c.id] || 0)} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} />
             ))}
           </div>
         )}
@@ -246,7 +246,7 @@ export default function Cuentas() {
           <div style={{ marginBottom: 'var(--space-6)' }}>
             <p className="ds-section-label">Inactivas</p>
             {inactivas.map(c => (
-              <CuentaCard key={c.id} c={c} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} neto={netoPorCuenta[c.id] || 0} />
+              <CuentaCard key={c.id} c={c} balance={Number(c.saldo_inicial || 0) + (netoPorCuenta[c.id] || 0)} isAdmin={isAdmin} onEdit={openEdit} onToggle={toggleActivo} onDelete={handleDelete} />
             ))}
           </div>
         )}
@@ -508,49 +508,76 @@ function fmt(monto, moneda) {
   return Number(monto).toLocaleString('es-DO', { minimumFractionDigits: 2 }) + ' ' + moneda
 }
 
-function CuentaCard({ c, isAdmin, onEdit, onToggle, onDelete, neto }) {
-  const balance = Number(c.saldo_inicial || 0) + neto
+function CuentaCard({ c, balance, isAdmin, onEdit, onToggle, onDelete }) {
+  const esTarjetaCredito = c.producto === 'Tarjeta de crédito'
+  const limite = Number(c.limite_credito || 0)
+  const disponible = Math.max(0, balance)
+  const pctUsado = esTarjetaCredito && limite > 0 ? Math.min(100, Math.max(0, (1 - disponible / limite) * 100)) : null
+  const barColor = pctUsado > 85 ? 'var(--color-danger)' : pctUsado > 60 ? 'var(--color-warning)' : 'var(--color-success)'
+
   return (
     <div
       className="ds-card"
       style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: 'var(--space-4)', marginBottom: 'var(--space-2)',
         opacity: c.activo ? 1 : 0.5,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: 'var(--radius-md)',
-          background: 'var(--color-primary-light)',
-          color: 'var(--color-primary)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <ProductoIcon producto={c.producto} size={20} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 'var(--radius-md)',
+            background: 'var(--color-primary-light)',
+            color: 'var(--color-primary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <ProductoIcon producto={c.producto} size={20} />
+          </div>
+          <div>
+            <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>{c.banco}</p>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{c.producto} · {c.moneda}</p>
+          </div>
         </div>
-        <div>
-          <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>{c.banco}</p>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{c.producto} · {c.moneda}</p>
+
+        <div style={{ textAlign: 'right' }}>
           <p style={{
-            fontSize: 'var(--text-sm)', fontWeight: 700, marginTop: 'var(--space-1)',
-            fontVariantNumeric: 'tabular-nums',
+            fontWeight: 700, fontSize: 'var(--text-base)', fontVariantNumeric: 'tabular-nums',
             color: balance < 0 ? 'var(--color-danger)' : 'var(--color-text-primary)',
           }}>
             {fmt(balance, c.moneda)}
           </p>
+          {pctUsado !== null && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+              de {fmt(limite, c.moneda)}
+            </p>
+          )}
         </div>
+
+        {isAdmin && (
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <button onClick={() => onEdit(c)} className="ds-btn ds-btn-ghost ds-btn-sm">Editar</button>
+            <button onClick={() => onToggle(c)} className="ds-btn ds-btn-ghost ds-btn-sm">
+              {c.activo ? 'Desactivar' : 'Activar'}
+            </button>
+            <button onClick={() => onDelete(c)} className="ds-btn ds-btn-danger ds-btn-sm" aria-label={`Eliminar ${c.banco}`}>
+              <IconX size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {isAdmin && (
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <button onClick={() => onEdit(c)} className="ds-btn ds-btn-ghost ds-btn-sm">Editar</button>
-          <button onClick={() => onToggle(c)} className="ds-btn ds-btn-ghost ds-btn-sm">
-            {c.activo ? 'Desactivar' : 'Activar'}
-          </button>
-          <button onClick={() => onDelete(c)} className="ds-btn ds-btn-danger ds-btn-sm" aria-label={`Eliminar ${c.banco}`}>
-            <IconX size={14} />
-          </button>
+      {pctUsado !== null && (
+        <div
+          className="ds-progress-track"
+          style={{ marginTop: 'var(--space-3)' }}
+          role="progressbar"
+          aria-valuenow={Math.round(pctUsado)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${Math.round(pctUsado)}% del límite de crédito usado`}
+        >
+          <div className="ds-progress-fill" style={{ width: `${pctUsado}%`, background: barColor }} />
         </div>
       )}
     </div>
