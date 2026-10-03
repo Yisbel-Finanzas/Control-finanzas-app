@@ -36,18 +36,21 @@ export default function App() {
       // un GET — eso permite que un escáner de enlaces del correo (Gmail,
       // antivirus, etc.) consuma el token antes de que la usuaria lo toque.
       // Con token_hash, el canje solo ocurre acá, vía JS en un navegador real.
-      const params = new URLSearchParams(window.location.search)
-      const tokenHash = params.get('token_hash')
-      const type = params.get('type')
+      try {
+        const params = new URLSearchParams(window.location.search)
+        const tokenHash = params.get('token_hash')
+        const type = params.get('type')
 
-      if (tokenHash && (type === 'invite' || type === 'recovery')) {
-        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
-        window.history.replaceState(null, '', window.location.pathname)
-        if (!error) setAuthFlow(type)
-      } else {
-        setAuthFlow(detectAuthFlowFromHash())
+        if (tokenHash && (type === 'invite' || type === 'recovery')) {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+          window.history.replaceState(null, '', window.location.pathname)
+          if (!error) setAuthFlow(type)
+        } else {
+          setAuthFlow(detectAuthFlowFromHash())
+        }
+      } finally {
+        setCheckingLink(false)
       }
-      setCheckingLink(false)
     }
     procesarLinkDeCorreo()
 
