@@ -378,22 +378,34 @@ export default function Deudas() {
       {/* Modal detalle de abonos */}
       {showDetalle && (
         <SheetModal onClose={() => setShowDetalle(false)} title="Historial de abonos" subtitle={deudaDetalle?.nombre}>
-          <SimuladorPagoExtra
-            deuda={deudaDetalle}
-            proyeccion={proyecciones[deudaDetalle?.id]}
-            extra={extraSimulado}
-            onExtraChange={setExtraSimulado}
-          />
+          {deudaDetalle?.tipo === 'financiera_cuota_fija' ? (
+            <div style={{
+              background: 'var(--color-warning-light)', borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)',
+              fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5,
+            }}>
+              Cuota fija: {deudaDetalle.cuota_fija
+                ? `${Number(deudaDetalle.cuota_fija).toLocaleString('es-DO', { minimumFractionDigits: 2 })} ${deudaDetalle.moneda}/mes`
+                : 'no especificada'}
+              {deudaDetalle.cuotas_totales ? ` durante ${deudaDetalle.cuotas_totales} cuotas` : ''}.
+              Los abonos a capital no reducen esta cuota — solo el saldo pendiente.
+            </div>
+          ) : (
+            <SimuladorPagoExtra
+              deuda={deudaDetalle}
+              proyeccion={proyecciones[deudaDetalle?.id]}
+              extra={extraSimulado}
+              onExtraChange={setExtraSimulado}
+            />
+          )}
 
-          {!loadingAbonos && abonosDetalle.length > 0 && (() => {
-            const interesEstimado = calcularInteresEstimado(
-              abonosDetalle, deudaDetalle?.limite_o_monto_original, deudaDetalle?.tasa_interes
-            )
-            if (interesEstimado === null) return null
+          {deudaDetalle?.tipo !== 'financiera_cuota_fija' && !loadingAbonos && abonosDetalle.length > 0 && (() => {
+            const interesTotal = abonosDetalle.reduce((s, a) => s + Number(a.interes || 0), 0)
+            if (interesTotal <= 0) return null
             return (
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>
-                Interés pagado hasta la fecha (estimado): <strong style={{ color: 'var(--color-text-secondary)' }}>
-                  {interesEstimado.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {deudaDetalle?.moneda}
+                Interés pagado hasta la fecha (registrado en tus abonos): <strong style={{ color: 'var(--color-text-secondary)' }}>
+                  {interesTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })} {deudaDetalle?.moneda}
                 </strong>
               </p>
             )
@@ -423,6 +435,12 @@ export default function Deudas() {
                 {a.cuentas && (
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
                     {a.cuentas.banco}{a.cuentas.producto !== a.cuentas.banco ? ` · ${a.cuentas.producto}` : ''}
+                  </p>
+                )}
+                {Number(a.interes || 0) > 0 && (
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                    Capital: {(Number(a.monto) - Number(a.interes)).toLocaleString('es-DO', { minimumFractionDigits: 2 })}
+                    {' · '}Interés: {Number(a.interes).toLocaleString('es-DO', { minimumFractionDigits: 2 })}
                   </p>
                 )}
               </div>
