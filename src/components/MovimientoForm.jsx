@@ -27,7 +27,7 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
   useEffect(() => {
     supabase.from('categorias').select('id,nombre,tipo').eq('activo', true)
       .then(({ data }) => setCategorias(data || []))
-    supabase.from('cuentas').select('id,banco,producto,saldo_inicial,limite_credito').eq('activo', true)
+    supabase.from('cuentas').select('id,banco,producto,moneda,saldo_inicial,limite_credito').eq('activo', true)
       .then(({ data }) => setCuentas(data || []))
     supabase.from('reglas_categorizacion').select('patron_texto, categoria_id, categorias(nombre)')
       .then(({ data }) => setReglasCategorizacion(data || []))
@@ -116,7 +116,7 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
     const cuenta = cuentas.find(c => c.id === cuentaId)
     if (!cuenta || cuenta.producto !== 'Tarjeta de crédito' || !cuenta.limite_credito) return null
 
-    let movsQuery = supabase.from('movimientos').select('tipo, monto')
+    let movsQuery = supabase.from('movimientos').select('tipo, monto, moneda')
       .eq('cuenta_id', cuentaId).is('deleted_at', null)
     if (item) movsQuery = movsQuery.neq('id', item.id)
 
@@ -127,7 +127,10 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
     ])
 
     let neto = 0
-    for (const m of movs || []) neto += (m.tipo === 'ingreso' ? 1 : -1) * Number(m.monto)
+    for (const m of movs || []) {
+      if (m.moneda !== cuenta.moneda) continue
+      neto += (m.tipo === 'ingreso' ? 1 : -1) * Number(m.monto)
+    }
     for (const t of transfs || []) {
       if (t.cuenta_origen_id === cuentaId) neto -= Number(t.monto)
       if (t.cuenta_destino_id === cuentaId) neto += Number(t.monto)
