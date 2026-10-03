@@ -623,8 +623,20 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDeta
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
           <div>
-            <p style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--color-text-primary)' }}>{d.nombre}</p>
-            {d.tasa_interes && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <p style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--color-text-primary)' }}>{d.nombre}</p>
+              {d.tipo === 'financiera_cuota_fija' && (
+                <span className="ds-badge ds-badge-warning">Cuota fija</span>
+              )}
+            </div>
+            {d.tipo === 'financiera_cuota_fija' ? (
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                {d.cuota_fija ? `${Number(d.cuota_fija).toLocaleString('es-DO', { minimumFractionDigits: 2 })} ${d.moneda}/mes` : ''}
+                {d.cuota_fija && d.cuotas_totales ? ' · ' : ''}
+                {d.cuotas_totales ? `${d.cuotas_totales} cuotas` : ''}
+                {d.tasa_interes ? ` · ${d.tasa_interes}% fijo` : ''}
+              </p>
+            ) : d.tasa_interes && (
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                 {d.tasa_interes}% interés anual
               </p>
