@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { usePerfil } from '../hooks/usePerfil'
 import { IconList, IconPlus } from '../components/icons/NavIcons'
 
-const emptyDeuda = { nombre: '', tipo: 'prestamo', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '' }
+const emptyDeuda = { nombre: '', tipo: 'prestamo', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '', cuota_fija: '', cuotas_totales: '' }
 const emptyAbono = { monto: '', moneda: 'DOP', fecha: new Date().toISOString().split('T')[0], cuenta_origen_id: '', categoria_id: '' }
 
 const MILESTONES = [25, 50, 75, 100]
@@ -126,6 +126,8 @@ export default function Deudas() {
       saldo_actual: d.saldo_actual ?? '',
       limite_o_monto_original: d.limite_o_monto_original ?? '',
       tasa_interes: d.tasa_interes ?? '',
+      cuota_fija: d.cuota_fija ?? '',
+      cuotas_totales: d.cuotas_totales ?? '',
     })
     setShowDeudaForm(true)
   }
@@ -163,6 +165,8 @@ export default function Deudas() {
       saldo_actual: formDeuda.saldo_actual !== '' ? parseFloat(formDeuda.saldo_actual) : null,
       limite_o_monto_original: formDeuda.limite_o_monto_original !== '' ? parseFloat(formDeuda.limite_o_monto_original) : null,
       tasa_interes: formDeuda.tasa_interes !== '' ? parseFloat(formDeuda.tasa_interes) : null,
+      cuota_fija: formDeuda.tipo === 'financiera_cuota_fija' && formDeuda.cuota_fija !== '' ? parseFloat(formDeuda.cuota_fija) : null,
+      cuotas_totales: formDeuda.tipo === 'financiera_cuota_fija' && formDeuda.cuotas_totales !== '' ? parseInt(formDeuda.cuotas_totales, 10) : null,
       fecha_ultima_actualizacion: new Date().toISOString().split('T')[0],
       activo: true,
     }
@@ -444,12 +448,12 @@ export default function Deudas() {
 
             <div className="ds-field">
               <p className="ds-label" id="tipo-deuda-label">Tipo</p>
-              <div role="group" aria-labelledby="tipo-deuda-label" style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                {[['prestamo', 'Préstamo'], ['tarjeta_credito', 'Tarjeta de crédito']].map(([val, label]) => (
+              <div role="group" aria-labelledby="tipo-deuda-label" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                {[['prestamo', 'Préstamo'], ['tarjeta_credito', 'Tarjeta de crédito'], ['financiera_cuota_fija', 'Financiera (cuota fija)']].map(([val, label]) => (
                   <button key={val} type="button" aria-pressed={formDeuda.tipo === val}
                     onClick={() => setD('tipo', val)}
                     style={{
-                      flex: 1, padding: 'var(--space-3)',
+                      flex: '1 1 30%', padding: 'var(--space-3)',
                       borderRadius: 'var(--radius-md)',
                       border: `2px solid ${formDeuda.tipo === val ? 'var(--color-primary)' : 'var(--color-border)'}`,
                       background: formDeuda.tipo === val ? 'var(--color-primary-light)' : 'var(--color-surface)',
@@ -458,6 +462,11 @@ export default function Deudas() {
                     }}>{label}</button>
                 ))}
               </div>
+              {formDeuda.tipo === 'financiera_cuota_fija' && (
+                <p className="ds-field-hint" style={{ marginTop: 'var(--space-2)' }}>
+                  Cuota mensual fija durante todo el plazo — no baja aunque abones a capital.
+                </p>
+              )}
             </div>
 
             <div className="ds-field">
@@ -504,6 +513,25 @@ export default function Deudas() {
                 onChange={e => setD('tasa_interes', e.target.value)}
                 placeholder="Ej: 36.00" className="ds-input" />
             </div>
+
+            {formDeuda.tipo === 'financiera_cuota_fija' && (
+              <div className="ds-field" style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="deuda-cuota-fija" className="ds-label">Cuota fija mensual</label>
+                  <input id="deuda-cuota-fija" type="number" step="0.01" min="0.01"
+                    value={formDeuda.cuota_fija}
+                    onChange={e => setD('cuota_fija', e.target.value)}
+                    placeholder="0.00" className="ds-input" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="deuda-cuotas-totales" className="ds-label">Cantidad de cuotas</label>
+                  <input id="deuda-cuotas-totales" type="number" step="1" min="1"
+                    value={formDeuda.cuotas_totales}
+                    onChange={e => setD('cuotas_totales', e.target.value)}
+                    placeholder="Ej: 24" className="ds-input" />
+                </div>
+              </div>
+            )}
 
             <SheetBotones onCancel={() => setShowDeudaForm(false)} saving={saving}
               label={editDeuda ? 'Guardar cambios' : 'Registrar deuda'} />
