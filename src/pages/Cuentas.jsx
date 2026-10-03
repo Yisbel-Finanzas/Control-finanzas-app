@@ -386,7 +386,11 @@ export default function Cuentas() {
               <div className="ds-field">
                 <label htmlFor="transf-origen" className="ds-label">Desde</label>
                 <select id="transf-origen" value={formTransferencia.cuenta_origen_id}
-                  onChange={e => setT('cuenta_origen_id', e.target.value)} className="ds-input" required>
+                  onChange={e => {
+                    const v = e.target.value
+                    setT('cuenta_origen_id', v)
+                    if (formTransferencia.cuenta_destino_id === v) setT('cuenta_destino_id', '')
+                  }} className="ds-input" required>
                   <option value="">Seleccionar cuenta de origen…</option>
                   {activas.map(c => (
                     <option key={c.id} value={c.id}>
