@@ -387,7 +387,7 @@ export default function Deudas() {
         <SheetModal onClose={() => setShowDetalle(false)} title="Historial de abonos" subtitle={deudaDetalle?.nombre}>
           {deudaDetalle?.tipo === 'financiera_cuota_fija' ? (
             <div style={{
-              background: 'var(--color-warning-light)', borderRadius: 'var(--radius-md)',
+              background: 'var(--color-bg)', borderRadius: 'var(--radius-md)',
               padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)',
               fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5,
             }}>
@@ -723,7 +723,7 @@ function DeudaCard({ deuda: d, isAdmin, onEdit, onAbono, onDesactivar, onVerDeta
           </p>
         )}
 
-        {proyeccion && (
+        {d.tipo !== 'financiera_cuota_fija' && proyeccion && (
           <p style={{ fontSize: 'var(--text-xs)', color: proyeccion.sinAbonos ? 'var(--color-text-muted)' : 'var(--color-primary)', fontWeight: 600, marginBottom: 'var(--space-1)' }}>
             {proyeccion.sinAbonos
               ? 'Registra abonos para ver una proyección'
