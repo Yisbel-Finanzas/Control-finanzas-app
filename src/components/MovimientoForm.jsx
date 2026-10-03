@@ -27,7 +27,7 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
   useEffect(() => {
     supabase.from('categorias').select('id,nombre,tipo').eq('activo', true)
       .then(({ data }) => setCategorias(data || []))
-    supabase.from('cuentas').select('id,banco,producto').eq('activo', true)
+    supabase.from('cuentas').select('id,banco,producto,moneda,saldo_inicial,limite_credito').eq('activo', true)
       .then(({ data }) => setCuentas(data || []))
     supabase.from('reglas_categorizacion').select('patron_texto, categoria_id, categorias(nombre)')
       .then(({ data }) => setReglasCategorizacion(data || []))
@@ -110,11 +110,50 @@ export default function MovimientoForm({ item, initial, perfil, onSave, onClose 
     }
   }
 
+  // Para tarjetas de crédito con límite configurado, un gasto no puede dejar el disponible
+  // en negativo: ese "gasto" no sería real, la tarjeta simplemente lo rechazaría.
+  async function excedeLimiteTarjeta(cuentaId, monto) {
+    const cuenta = cuentas.find(c => c.id === cuentaId)
+    if (!cuenta || cuenta.producto !== 'Tarjeta de crédito' || !cuenta.limite_credito) return null
+
+    let movsQuery = supabase.from('movimientos').select('tipo, monto, moneda')
+      .eq('cuenta_id', cuentaId).is('deleted_at', null)
+    if (item) movsQuery = movsQuery.neq('id', item.id)
+
+    const [{ data: movs }, { data: transfs }] = await Promise.all([
+      movsQuery,
+      supabase.from('transferencias').select('monto, moneda, cuenta_origen_id, cuenta_destino_id')
+        .or(`cuenta_origen_id.eq.${cuentaId},cuenta_destino_id.eq.${cuentaId}`),
+    ])
+
+    let neto = 0
+    for (const m of movs || []) {
+      if (m.moneda !== cuenta.moneda) continue
+      neto += (m.tipo === 'ingreso' ? 1 : -1) * Number(m.monto)
+    }
+    for (const t of transfs || []) {
+      if (t.moneda !== cuenta.moneda) continue
+      if (t.cuenta_origen_id === cuentaId) neto -= Number(t.monto)
+      if (t.cuenta_destino_id === cuentaId) neto += Number(t.monto)
+    }
+
+    const disponible = Number(cuenta.saldo_inicial || 0) + neto
+    return monto > disponible ? disponible : null
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setFormError(null)
     if (!form.cuenta_id) { setFormError('Selecciona una cuenta antes de continuar.'); return }
     const monto = parseFloat(form.monto)
+
+    if (form.tipo === 'gasto') {
+      const disponible = await excedeLimiteTarjeta(form.cuenta_id, monto)
+      if (disponible !== null) {
+        setFormError(`Este gasto excede el disponible de la tarjeta (${disponible.toFixed(2)} ${form.moneda}).`)
+        return
+      }
+    }
 
     if (!item) {
       const duplicado = await hayPosibleDuplicado(monto)
