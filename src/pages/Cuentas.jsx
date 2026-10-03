@@ -66,18 +66,25 @@ export default function Cuentas() {
   useEffect(() => { fetchCuentas() }, [])
 
   function openNew()  { setEditItem(null); setForm(emptyForm); setShowForm(true) }
-  function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda || 'DOP', saldo_inicial: String(c.saldo_inicial ?? 0) }); setShowForm(true) }
+  function openEdit(c) { setEditItem(c); setForm({ banco: c.banco || '', producto: c.producto || 'Cuenta corriente', moneda: c.moneda || 'DOP', saldo_inicial: c.saldo_inicial != null ? String(c.saldo_inicial) : '', limite_credito: c.limite_credito != null ? String(c.limite_credito) : '' }); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditItem(null) }
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.banco.trim()) return
+    if (form.producto === 'Tarjeta de crédito' && form.limite_credito === '') {
+      alert('Ingresa el límite de crédito de la tarjeta.')
+      return
+    }
     setSaving(true)
-    // Diagnóstico: verificar rol antes de insertar
-    const { data: rolData } = await supabase.rpc('mi_rol')
-    console.log('mi_rol() result:', rolData)
-    const payload = { banco: form.banco.trim(), producto: form.producto, moneda: form.moneda, saldo_inicial: Number(form.saldo_inicial) || 0 }
+    const payload = {
+      banco: form.banco.trim(),
+      producto: form.producto,
+      moneda: form.moneda,
+      saldo_inicial: form.saldo_inicial !== '' ? parseFloat(form.saldo_inicial) : 0,
+      limite_credito: form.producto === 'Tarjeta de crédito' && form.limite_credito !== '' ? parseFloat(form.limite_credito) : null,
+    }
     let error
     if (editItem) {
       ({ error } = await supabase.from('cuentas').update(payload).eq('id', editItem.id))
@@ -192,8 +199,30 @@ export default function Cuentas() {
                 </select>
               </div>
 
+              {form.producto === 'Tarjeta de crédito' && (
+                <div className="ds-field">
+                  <label htmlFor="limite-credito" className="ds-label">Límite de crédito</label>
+                  <input
+                    id="limite-credito"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={form.limite_credito}
+                    onChange={e => set('limite_credito', e.target.value)}
+                    placeholder="0.00"
+                    required
+                    className="ds-input"
+                  />
+                  <p className="ds-field-hint">
+                    El tope máximo de la tarjeta — no cambia con el uso. Se usa para la barra de disponible/usado y para que un gasto no pueda registrarse por encima de lo disponible.
+                  </p>
+                </div>
+              )}
+
               <div className="ds-field">
-                <label htmlFor="saldo_inicial" className="ds-label">Saldo inicial</label>
+                <label htmlFor="saldo_inicial" className="ds-label">
+                  {form.producto === 'Tarjeta de crédito' ? 'Disponible actual' : 'Saldo inicial'} <span className="ds-label-hint">(opcional)</span>
+                </label>
                 <input
                   id="saldo_inicial"
                   type="number"
@@ -202,9 +231,12 @@ export default function Cuentas() {
                   onChange={e => set('saldo_inicial', e.target.value)}
                   placeholder="0.00"
                   className="ds-input"
-                  style={{ fontVariantNumeric: 'tabular-nums' }}
                 />
-                <p className="ds-field-hint">Balance de la cuenta al registrarla, o para corregirlo.</p>
+                <p className="ds-field-hint">
+                  {form.producto === 'Tarjeta de crédito'
+                    ? 'Cuánto te queda disponible en la tarjeta ahora mismo (límite menos lo que ya tengas consumido). Cada gasto que registres contra esta tarjeta lo irá reduciendo.'
+                    : 'El saldo con el que arrancas a usar la app. El balance disponible se calcula sumándole los ingresos y restándole los gastos registrados en esta cuenta.'}
+                </p>
               </div>
 
               <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
