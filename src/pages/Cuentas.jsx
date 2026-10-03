@@ -17,7 +17,7 @@ function ProductoIcon({ producto, size = 20 }) {
   return <IconBank size={size} />
 }
 
-const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP', saldo_inicial: '0' }
+const emptyForm = { banco: '', producto: 'Cuenta corriente', moneda: 'DOP', saldo_inicial: '', limite_credito: '' }
 
 export default function Cuentas() {
   const perfil = usePerfil()
@@ -33,12 +33,14 @@ export default function Cuentas() {
 
   async function fetchCuentas() {
     setLoading(true)
-    const [{ data, error }, { data: movs, error: movsError }] = await Promise.all([
+    const [{ data, error }, { data: movs, error: movsError }, { data: transfs, error: transfsError }] = await Promise.all([
       supabase.from('cuentas').select('*').order('producto'),
       supabase.from('movimientos').select('cuenta_id, tipo, monto, moneda').is('deleted_at', null),
+      supabase.from('transferencias').select('cuenta_origen_id, cuenta_destino_id, monto'),
     ])
     if (error) console.error('Cuentas fetch error:', error)
     if (movsError) console.error('Movimientos fetch error:', movsError)
+    if (transfsError) console.error('Transferencias fetch error:', transfsError)
 
     const cuentasData = data || []
     const monedaPorCuenta = {}
@@ -50,6 +52,10 @@ export default function Cuentas() {
       if (m.moneda !== monedaPorCuenta[m.cuenta_id]) return
       const delta = m.tipo === 'ingreso' ? Number(m.monto) : -Number(m.monto)
       neto[m.cuenta_id] = (neto[m.cuenta_id] || 0) + delta
+    })
+    ;(transfs || []).forEach(t => {
+      neto[t.cuenta_origen_id] = (neto[t.cuenta_origen_id] || 0) - Number(t.monto)
+      neto[t.cuenta_destino_id] = (neto[t.cuenta_destino_id] || 0) + Number(t.monto)
     })
 
     setCuentas(cuentasData)
