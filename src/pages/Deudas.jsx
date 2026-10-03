@@ -521,14 +521,14 @@ export default function Deudas() {
                   <input id="deuda-cuota-fija" type="number" step="0.01" min="0.01"
                     value={formDeuda.cuota_fija}
                     onChange={e => setD('cuota_fija', e.target.value)}
-                    placeholder="0.00" className="ds-input" />
+                    placeholder="0.00" required className="ds-input" />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label htmlFor="deuda-cuotas-totales" className="ds-label">Cantidad de cuotas</label>
                   <input id="deuda-cuotas-totales" type="number" step="1" min="1"
                     value={formDeuda.cuotas_totales}
                     onChange={e => setD('cuotas_totales', e.target.value)}
-                    placeholder="Ej: 24" className="ds-input" />
+                    placeholder="Ej: 24" required className="ds-input" />
                 </div>
               </div>
             )}
