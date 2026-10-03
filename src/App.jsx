@@ -14,8 +14,9 @@ import CuentasPorCobrar from './pages/CuentasPorCobrar'
 import ConfigCategorias from './pages/config/Categorias'
 import ConfigPresupuesto from './pages/config/Presupuesto'
 
-// Detectar flujo de invitación o recuperación antes de cualquier render
-function detectAuthFlow() {
+// Detecta el flujo de invitación/recuperación desde el hash (links antiguos,
+// ya resueltos automáticamente por supabase-js al cargar el cliente).
+function detectAuthFlowFromHash() {
   const hash = window.location.hash
   if (hash.includes('type=invite')) return 'invite'
   if (hash.includes('type=recovery')) return 'recovery'
@@ -24,13 +25,38 @@ function detectAuthFlow() {
 
 export default function App() {
   const [session, setSession] = useState(undefined)
-  const [authFlow, setAuthFlow] = useState(detectAuthFlow)
+  const [authFlow, setAuthFlow] = useState(null)
+  const [checkingLink, setCheckingLink] = useState(true)
 
   useEffect(() => {
+    async function procesarLinkDeCorreo() {
+      // Los links de invitación/recuperación ahora llegan como
+      // ?token_hash=...&type=invite (ver plantillas de correo en Supabase),
+      // en vez del formato #access_token=... que Supabase resuelve solo con
+      // un GET — eso permite que un escáner de enlaces del correo (Gmail,
+      // antivirus, etc.) consuma el token antes de que la usuaria lo toque.
+      // Con token_hash, el canje solo ocurre acá, vía JS en un navegador real.
+      const params = new URLSearchParams(window.location.search)
+      const tokenHash = params.get('token_hash')
+      const type = params.get('type')
+
+      if (tokenHash && (type === 'invite' || type === 'recovery')) {
+        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+        window.history.replaceState(null, '', window.location.pathname)
+        if (!error) setAuthFlow(type)
+      } else {
+        setAuthFlow(detectAuthFlowFromHash())
+      }
+      setCheckingLink(false)
+    }
+    procesarLinkDeCorreo()
+
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => subscription.unsubscribe()
   }, [])
+
+  if (checkingLink) return null
 
   // Flujo de invitación o recuperación de contraseña
   if (authFlow) {
