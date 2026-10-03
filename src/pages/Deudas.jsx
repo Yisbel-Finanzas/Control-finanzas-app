@@ -4,7 +4,7 @@ import { usePerfil } from '../hooks/usePerfil'
 import { IconList, IconPlus } from '../components/icons/NavIcons'
 
 const emptyDeuda = { nombre: '', tipo: 'prestamo', moneda: 'DOP', saldo_actual: '', limite_o_monto_original: '', tasa_interes: '', cuota_fija: '', cuotas_totales: '' }
-const emptyAbono = { monto: '', moneda: 'DOP', fecha: new Date().toISOString().split('T')[0], cuenta_origen_id: '', categoria_id: '' }
+const emptyAbono = { monto: '', interes: '', moneda: 'DOP', fecha: new Date().toISOString().split('T')[0], cuenta_origen_id: '', categoria_id: '' }
 
 const MILESTONES = [25, 50, 75, 100]
 
@@ -188,14 +188,21 @@ export default function Deudas() {
       setAbonoError('Selecciona una categoría para el gasto.')
       return
     }
+    const monto = parseFloat(formAbono.monto)
+    const interes = formAbono.interes !== '' ? parseFloat(formAbono.interes) : 0
+    const capital = monto - interes
+    if (interes < 0 || capital < 0) {
+      setAbonoError('El interés no puede ser mayor que el monto pagado.')
+      return
+    }
     setAbonoError(null)
     setSaving(true)
-    const monto = parseFloat(formAbono.monto)
-    const nuevoSaldo = (deudaParaAbonar.saldo_actual || 0) - monto
+    const nuevoSaldo = (deudaParaAbonar.saldo_actual || 0) - capital
     const results = await Promise.all([
       supabase.from('abonos_deuda').insert({
         deuda_id: deudaParaAbonar.id,
         monto,
+        interes,
         moneda: formAbono.moneda,
         fecha: formAbono.fecha,
         cuenta_origen_id: formAbono.cuenta_origen_id || null,
@@ -592,6 +599,26 @@ export default function Deudas() {
                   <option value="USD">USD</option>
                 </select>
               </div>
+            </div>
+
+            <div className="ds-field">
+              <label htmlFor="abono-interes" className="ds-label">
+                De ese monto, ¿cuánto es interés? <span className="ds-label-hint">(opcional)</span>
+              </label>
+              <input id="abono-interes" type="number" step="0.01" min="0"
+                value={formAbono.interes}
+                onChange={e => setA('interes', e.target.value)}
+                placeholder="0.00" className="ds-input" />
+              <p className="ds-field-hint">
+                Déjalo vacío si este pago es 100% abono a capital. Si estás pagando tu cuota
+                regular (capital + interés), indica aquí la parte de interés — el saldo de la
+                deuda solo bajará por la diferencia (el capital).
+                {formAbono.monto !== '' && formAbono.interes !== '' && (
+                  <> Capital de este pago: <strong>
+                    {(parseFloat(formAbono.monto || 0) - parseFloat(formAbono.interes || 0)).toLocaleString('es-DO', { minimumFractionDigits: 2 })} {formAbono.moneda}
+                  </strong>.</>
+                )}
+              </p>
             </div>
 
             <div className="ds-field">
